@@ -3,7 +3,7 @@
 **High-performance structured logging for .NET 9 — MEL-compatible, async-first, production-grade.**
 
 [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Core.svg)](https://www.nuget.org/packages/SinkSharp.Core)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/SinkSharp/.github/blob/main/profile/LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-9.0-purple.svg)](https://dotnet.microsoft.com)
 
 SinkSharp is a drop-in `ILogger<T>` replacement with a striped async channel queue, built-in PII masking, correlation ID propagation, and a free local dashboard. No code changes needed to adopt — just swap the logger factory.
@@ -25,7 +25,7 @@ SinkSharp is a drop-in `ILogger<T>` replacement with a striped async channel que
 | Free local dashboard | ✅ | ❌ ($500/yr Seq) |
 | Built-in health check | ✅ | ❌ |
 | MEL `ILogger<T>` compatible | ✅ | ✅ |
-| Licence | MIT | Apache 2.0 |
+| Licence | Apache 2.0 | BSD |
 
 > Benchmarks run on .NET 9.0.16, Windows 11, X64 RyuJIT AVX2. Results vary by workload — see [Benchmarks](#benchmarks) for full details.
 
@@ -395,6 +395,6 @@ All enqueued events were processed — zero dropped, zero lost, `Enqueued == Pro
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+Apache 2.0 — see [LICENSE](https://github.com/SinkSharp/.github/blob/main/profile/LICENSE).
 
 Benchmark comparisons use Serilog (Apache 2.0) as an external reference only. Serilog is not included in any SinkSharp package.
