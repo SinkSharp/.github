@@ -25,7 +25,7 @@ SinkSharp is a drop-in `ILogger<T>` replacement with a striped async channel que
 | Free local dashboard | ✅ | ❌ ($500/yr Seq) |
 | Built-in health check | ✅ | ❌ |
 | MEL `ILogger<T>` compatible | ✅ | ✅ |
-| Licence | Apache 2.0 | BSD |
+| Licence | Apache 2.0 | Apache 2.0 |
 
 > Benchmarks run on .NET 9.0.16, Windows 11, X64 RyuJIT AVX2. Results vary by workload — see [Benchmarks](#benchmarks) for full details.
 
