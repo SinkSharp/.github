@@ -284,11 +284,11 @@ Info/Warn/Debug ──→ Bounded channel (DropOldest on overflow)
 
 | Package | Version | Description |
 |---|---|---|
-| `SinkSharp.Core` | 1.0.0 | Queue, pipeline, builder, MEL integration, health check |
-| `SinkSharp.Sinks.Console` | 1.0.0 | Coloured console output |
+| `SinkSharp.Core` | 1.0.2 | Queue, pipeline, builder, MEL integration, health check |
+| `SinkSharp.Sinks.Console` | 1.0.1 | Coloured console output with `showFullCategory` / `showSourceContext` params |
 | `SinkSharp.Sinks.File` | 1.0.0 | Rolling daily JSONL file sink |
 | `SinkSharp.Enrichers.Azure` | 1.0.0 | Region, resource group, slot name, pod name |
-| `SinkSharp.Sinks.Dashboard` | 1.0.0-preview | Embedded localhost:5341 real-time dashboard |
+| `SinkSharp.Sinks.Dashboard` | 1.0.1-preview | Embedded localhost:5341 real-time dashboard |
 
 ---
 
@@ -390,6 +390,16 @@ All enqueued events were processed — zero dropped, zero lost, `Enqueued == Pro
 | v1.1 | Striped channel improvements for 64+ producer scaling |
 | v1.2 | `SinkSharp.AI` — query logs in plain English via Anthropic API |
 | v1.3 | `SinkSharp.Sinks.AzureMonitor` — cost-aware routing to App Insights |
+
+---
+
+## Samples
+
+Working samples for every use case — Console, Web API, Worker, Minimal API, Custom Sink, Custom Enricher, Multi-Sink, Health Check, Scoped Logging, Azure.
+
+```bash
+git clone https://github.com/SinkSharp/SinkSharp-Logging-Samples
+```
 
 ---
 
