@@ -1,6 +1,35 @@
 # Changelog
 
+## [1.0.4-preview] — 2026-10-12
+
+### SinkSharp.Sinks.Dashboard 1.0.4-preview
+
+**New features**
+- Added `AddSinkSharpDashboardRedis()` — reuse your existing Redis instance as a
+  SignalR backplane for multi-pod / Kubernetes deployments. All replicas stream logs
+  to the same dashboard session. Safe to share with IDistributedCache, session,
+  rate limiting — uses isolated `SinkSharp` channel prefix by default.
+  Requires `Microsoft.AspNetCore.SignalR.StackExchangeRedis` NuGet package.
+
+**Bug fixes**
+- Fixed: Dashboard hub and stats URLs now derived from `window.location.pathname` at runtime
+  instead of being injected server-side — works correctly with `app.UsePathBase()`,
+  reverse proxies, and Kubernetes path prefixes (e.g. `/labor`).
+  Previous server-side `__SINKSHARP_PATH__` injection caused 404 on stats and SignalR
+  hub when deployed with a path prefix regardless of `UsePathBase` ordering in `Program.cs`
+
+---
+
 ## [1.0.2] — 2026-10-12
+
+### SinkSharp.Sinks.Dashboard 1.0.2-preview
+
+**Bug fixes**
+- Fixed: Dashboard hub and stats URLs now derived from `window.location.pathname` at runtime
+  instead of being injected server-side — works correctly with `app.UsePathBase()`,
+  reverse proxies, Kubernetes path prefixes (e.g. `/labor`), and any `UsePathBase` ordering.
+  Previous server-side injection caused 404 on `/sinksharp/dashboard/stats` when
+  deployed with a path prefix because the PathBase was not included in the injected URL
 
 ### SinkSharp.Core 1.0.2
 

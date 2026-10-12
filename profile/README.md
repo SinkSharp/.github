@@ -288,7 +288,7 @@ Info/Warn/Debug ──→ Bounded channel (DropOldest on overflow)
 | `SinkSharp.Sinks.Console` | 1.0.1 | Coloured console output with `showFullCategory` / `showSourceContext` params |
 | `SinkSharp.Sinks.File` | 1.0.0 | Rolling daily JSONL file sink |
 | `SinkSharp.Enrichers.Azure` | 1.0.0 | Region, resource group, slot name, pod name |
-| `SinkSharp.Sinks.Dashboard` | 1.0.1-preview | Embedded localhost:5341 real-time dashboard |
+| `SinkSharp.Sinks.Dashboard` | 1.0.4-preview | Embedded localhost:5341 real-time dashboard |
 
 ---
 
