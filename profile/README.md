@@ -14,10 +14,10 @@ SinkSharp is a drop-in `ILogger<T>` replacement with a striped async channel que
 
 | | SinkSharp | Serilog |
 |---|---|---|
-| Caller-side latency | **~670ns–1µs** | ~2.8µs |
-| Allocation (0 props) | **92 B** | 161 B |
+| Caller-side latency | **~435ns** | ~2.8µs |
+| Allocation (0 props) | **412 B** | 161 B |
 | Allocation (3 props) | **412 B** | 473 B |
-| Lock contentions (32 threads) | **1.3** | 979 |
+| Lock contentions (32 threads) | **0** | 207 |
 | Non-blocking callers | ✅ Always | ✅ With async wrapper |
 | Built-in PII masking | ✅ | ❌ |
 | Auto correlation ID | ✅ | ❌ Manual |
@@ -27,7 +27,7 @@ SinkSharp is a drop-in `ILogger<T>` replacement with a striped async channel que
 | MEL `ILogger<T>` compatible | ✅ | ✅ |
 | Licence | Apache 2.0 | Apache 2.0 |
 
-> Benchmarks run on .NET 9.0.16, Windows 11, X64 RyuJIT AVX2. Results vary by workload — see [Benchmarks](#benchmarks) for full details.
+> Benchmarks run on .NET 9.0.20, Windows 11, X64 RyuJIT AVX2. Results vary by workload — see [Benchmarks](#benchmarks) for full details.
 
 ---
 
@@ -284,7 +284,7 @@ Info/Warn/Debug ──→ Bounded channel (DropOldest on overflow)
 
 | Package | Version | Description |
 |---|---|---|
-| `SinkSharp.Core` | 1.0.2 | Queue, pipeline, builder, MEL integration, health check |
+| `SinkSharp.Core` | 1.0.3 | Queue, pipeline, builder, MEL integration, health check |
 | `SinkSharp.Sinks.Console` | 1.0.1 | Coloured console output with `showFullCategory` / `showSourceContext` params |
 | `SinkSharp.Sinks.File` | 1.0.0 | Rolling daily JSONL file sink |
 | `SinkSharp.Enrichers.Azure` | 1.0.0 | Region, resource group, slot name, pod name |
@@ -294,7 +294,7 @@ Info/Warn/Debug ──→ Bounded channel (DropOldest on overflow)
 
 ## Benchmarks
 
-All benchmarks: .NET 9.0.16 · Windows 11 · X64 RyuJIT AVX2 · BenchmarkDotNet 0.14.0
+All benchmarks: .NET 9.0.20 · Windows 11 · X64 RyuJIT AVX2 · BenchmarkDotNet 0.14.0
 
 ### Hot path — caller-side latency per `Log()` call
 
@@ -312,7 +312,7 @@ SinkSharp achieved **2.7×–4.2× lower latency** than the tested Serilog confi
 
 | Properties | SinkSharp | Serilog |
 |---|---|---|
-| 0 | **92 B** | 161 B |
+| 0 | **412 B** | 161 B |
 | 1 | 377 B | 361 B |
 | 3 | **412 B** | 473 B |
 
@@ -336,7 +336,7 @@ SinkSharp allocates **43% less** at 0 properties (queue infrastructure amortised
 | 4 | **2,935 µs** | 6,052 µs | **2.1×** | 0 vs 135 |
 | 8 | **6,285 µs** | 10,785 µs | **1.7×** | 0.25 vs 289 |
 | 16 | **14,232 µs** | 24,018 µs | **1.7×** | 0.25 vs 496 |
-| 32 | **34,066 µs** | 41,954 µs | **1.2×** | 1.3 vs 979 |
+| 32 | **34,066 µs** | 41,954 µs | **1.2×** | 0 vs 207 |
 
 **SinkSharp outperforms the tested Serilog configuration at every producer count from 1 to 32**, with **754× fewer lock contentions** at 32 threads — a structural advantage from striped channels.
 
@@ -389,7 +389,7 @@ All enqueued events were processed — zero dropped, zero lost, `Enqueued == Pro
 |---|---|
 | v1.1 | Striped channel improvements for 64+ producer scaling |
 | v1.2 | `SinkSharp.AI` — query logs in plain English via Anthropic API |
-| v1.3 | `SinkSharp.Sinks.AzureMonitor` — cost-aware routing to App Insights |
+| v0 | `SinkSharp.Sinks.AzureMonitor` — cost-aware routing to App Insights |
 
 ---
 
@@ -408,3 +408,71 @@ git clone https://github.com/SinkSharp/SinkSharp-Logging-Samples
 Apache 2.0 — see [LICENSE](https://github.com/SinkSharp/.github/blob/main/profile/LICENSE).
 
 Benchmark comparisons use Serilog (Apache 2.0) as an external reference only. Serilog is not included in any SinkSharp package.
+
+---
+
+## Dashboard
+
+SinkSharp includes an embedded real-time log dashboard — free alternative to Seq ($500/yr).
+It mounts on your existing app at the same host and port. No extra process, no extra port.
+
+### How it works
+
+```
+Your app → async queue → DashboardSink → LogBuffer (500 events, circular)
+                                                │
+                                                ▼ SignalR WebSocket
+                                         Browser dashboard
+                                         (buffer replay on connect + live stream)
+```
+
+When you open the dashboard:
+- **Immediate**: last 500 events from the connected pod are replayed
+- **Then live**: every new event pushed in real time via SignalR
+
+### Single pod / local dev
+
+```csharp
+DashboardSink dashSink = null!;
+
+builder.Services.AddSinkSharp(options => options
+    .WithDashboard(out dashSink)
+    .WriteTo(new ColoredConsoleSink()));
+
+builder.Services.AddSinkSharpDashboard(dashSink);
+
+var app = builder.Build();
+app.UseSinkSharpDashboard("/sinksharp/dashboard");
+// → https://localhost:5001/sinksharp/dashboard
+```
+
+### Multi-pod / Kubernetes (Redis backplane)
+
+Each pod has its own in-memory buffer. Without a backplane, you only see the logs
+from whichever pod the load balancer sends your browser to. Add a Redis backplane
+to merge all pod streams into one dashboard — **reuse your existing Redis instance**,
+SinkSharp uses its own channel prefix and never interferes with your cache or sessions.
+
+```bash
+dotnet add package Microsoft.AspNetCore.SignalR.StackExchangeRedis
+```
+
+```csharp
+// Replace AddSinkSharpDashboard() with AddSinkSharpDashboardRedis()
+builder.Services.AddSinkSharpDashboardRedis(dashSink, signalR =>
+    signalR.AddStackExchangeRedis(
+        builder.Configuration["Redis:ConnectionString"],
+        options => options.Configuration.ChannelPrefix =
+            StackExchange.Redis.RedisChannel.Literal("MyApp.SinkSharp")));
+```
+
+```
+Without Redis:  Browser → Pod A only   (Pod B invisible)
+With Redis:     Browser → Pod A + Pod B merged  ✅
+```
+
+**Redis memory:** Zero growth — pub/sub is fire-and-forget, nothing stored in Redis.
+
+> See [SinkSharp.Sinks.Dashboard README](src/SinkSharp.Sinks.Dashboard/README.md)
+> for the full architecture, Worker/Console setup, path prefix config, and multi-app isolation.
+

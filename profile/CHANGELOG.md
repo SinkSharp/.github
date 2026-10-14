@@ -20,6 +20,36 @@
 
 ---
 
+## [1.0.3] — 2026-10-12
+
+### SinkSharp.Core 1.0.3
+
+**Performance — Hybrid inline property store (SmallPropertyBag)**
+
+Replaced `Dictionary<string,object?>` backing store with a hybrid inline array
+following the ASP.NET Core `RouteValueDictionary` pattern:
+
+- First 4 properties stored as inline struct fields on `LogEvent` — zero heap allocation
+- 5th+ properties spill to overflow `Dictionary` (rare in practice — typical log call has 1-3)
+- `LogEvent.Properties` public API unchanged — returns `Dictionary<string,object?>` as before
+  (built lazily from inline slots on first external access — never allocated in the hot path)
+
+Expected improvements vs v1.0.2:
+- Allocation at 0 props: 87B → ~0B
+- Allocation at 1 prop:  377B → ~32B  (was WORSE than Serilog 361B — now 91% less)
+- Allocation at 3 props: 425B → ~96B
+- Gen2 GC at 8 threads:  45.9 → near zero (no Entry[] array to survive GC cycles)
+- Gen2 GC at 16 threads: 103.5 → ~10-20
+
+**Internals**
+- Added `SmallPropertyBag` struct (`Pipeline/SmallPropertyBag.cs`)
+- `PropertyBag` now wraps `LogEvent._bag` directly — enricher writes skip Dictionary
+- `DefaultFormatter` reads `_bag` directly — hot drainer path skips Dictionary
+- `CorrelationId` promoted to direct `LogEvent` field — zero allocation capture on caller thread
+- `PooledLogEvent.ReturnToPool()` calls `_bag.Clear()` — O(1) struct field zeroing vs Dict.Clear()
+
+---
+
 ## [1.0.2] — 2026-10-12
 
 ### SinkSharp.Sinks.Dashboard 1.0.2-preview
