@@ -1,5 +1,55 @@
 # Changelog
 
+## [1.0.6-preview] — 2026-10-17
+
+### SinkSharp.Sinks.Dashboard 1.0.6-preview
+
+**New features**
+- Real project logo embedded in dashboard header (replaces placeholder S# text)
+- Theme toggle — dark/light mode switch in topbar (🌙/☀️)
+- Time filter — All / 5m / 30m / 1h quick filter in search bar (client-side, no server change)
+- Export button — downloads visible events as JSON file
+
+**UX improvements**
+- Topbar restructured as 3-column grid — auth pills in centre, actions never overflow
+- Service column widened (128px) with `minmax` on message — full names now visible
+- Properties panel uses CSS grid (130px key column) — aligned two-column layout
+- Detail panel taller (260px) — more property rows visible without scrolling
+- Dark mode contrast improved — text, borders, sidebar labels clearly readable
+- Critical level added as separate sidebar filter (was grouped with Error)
+
+**Bug fixes**
+- Message column blank — JS was reading `renderedMessage`, server sends `message`
+- `[object Object]` for HttpMethod — now unwraps structured log objects:
+  `{Value:"GET"}`, `{value:"GET"}`, `{method:"GET"}` (single-key) all → `GET`
+- `null` JS errors on renderAll/clearAll — empty-state no longer a persistent DOM node
+- `appendChild` errors — clearAll, filterByCorr, setLevel all fixed
+- CRT (Critical) now shown when Error level filter is active
+- Service filter uses exact short name match (was `.includes()`, too loose)
+- Auto-scroll re-enables when user scrolls back to top
+- Export URL properly revoked after download (memory leak fix)
+- Copy JSON falls back to `execCommand` on HTTP (non-HTTPS) connections
+
+---
+
+## [1.0.5-preview] — 2026-10-13
+
+### SinkSharp.Sinks.Dashboard 1.0.5-preview
+
+**New features**
+- Added `DashboardOptions` — auth and access control for the dashboard via `UseSinkSharpDashboard()` overload:
+  - `opts.RequireAuthorization()` — any authenticated user (uses your app's existing auth)
+  - `opts.RequireAuthorization("PolicyName")` — named policy you define in `AddAuthorization()`
+  - `opts.RequireRole("Admin", "DevOps")` — inline role check, no named policy needed
+  - `opts.AllowFrom("10.0.0.0/8")` — IP allowlist, no user auth needed
+  - `opts.UseBasicAuth("user", "pass")` — HTTP Basic auth, no `AddAuthentication()` needed
+  - `opts.ConfigureEndpoints(ep => ...)` — full control escape hatch for custom policies,
+    rate limiting, CORS, or any other ASP.NET endpoint configuration
+- All auth options apply to all three dashboard endpoints (UI, `/hub`, `/stats`) consistently
+- Default behaviour unchanged — no auth when `configure` is not passed
+
+---
+
 ## [1.0.4-preview] — 2026-10-12
 
 ### SinkSharp.Sinks.Dashboard 1.0.4-preview
@@ -24,29 +74,10 @@
 
 ### SinkSharp.Core 1.0.3
 
-**Performance — Hybrid inline property store (SmallPropertyBag)**
-
-Replaced `Dictionary<string,object?>` backing store with a hybrid inline array
-following the ASP.NET Core `RouteValueDictionary` pattern:
-
-- First 4 properties stored as inline struct fields on `LogEvent` — zero heap allocation
-- 5th+ properties spill to overflow `Dictionary` (rare in practice — typical log call has 1-3)
-- `LogEvent.Properties` public API unchanged — returns `Dictionary<string,object?>` as before
-  (built lazily from inline slots on first external access — never allocated in the hot path)
-
-Expected improvements vs v1.0.2:
-- Allocation at 0 props: 87B → ~0B
-- Allocation at 1 prop:  377B → ~32B  (was WORSE than Serilog 361B — now 91% less)
-- Allocation at 3 props: 425B → ~96B
-- Gen2 GC at 8 threads:  45.9 → near zero (no Entry[] array to survive GC cycles)
-- Gen2 GC at 16 threads: 103.5 → ~10-20
-
-**Internals**
-- Added `SmallPropertyBag` struct (`Pipeline/SmallPropertyBag.cs`)
-- `PropertyBag` now wraps `LogEvent._bag` directly — enricher writes skip Dictionary
-- `DefaultFormatter` reads `_bag` directly — hot drainer path skips Dictionary
-- `CorrelationId` promoted to direct `LogEvent` field — zero allocation capture on caller thread
-- `PooledLogEvent.ReturnToPool()` calls `_bag.Clear()` — O(1) struct field zeroing vs Dict.Clear()
+**Performance**
+- `EnsureCapacity()` called before `ExtractFromTokens` — pre-sizes the property dictionary to the exact
+  number of tokens in the template, eliminating the resize on first `Add()` for every log event
+- All v1.0.2 bug fixes included
 
 ---
 
@@ -127,7 +158,6 @@ Expected improvements vs v1.0.2:
 - `AzureContextEnricher` — region, resource group, slot name, pod name
 
 **Performance** (vs Serilog, .NET 9.0.16 Windows 11 X64)
-- 2.7×–4.2× lower hot-path latency
-- 43% less allocation at 0 properties
-- 754× fewer lock contentions at 32 concurrent producers
+- 4.0×–4.5× lower hot-path latency
+- Zero lock contentions at 32 concurrent producers
 - `Enqueued == Processed` verified end-to-end
