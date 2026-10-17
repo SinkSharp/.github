@@ -20,7 +20,7 @@
 | Caller blocked by slow sink | No (430 ns) | Yes | **Async isolated** |
 | Sustained 8 threads | 2,522 μs | 4,371 μs | **1.7× faster** |
 
-See [benchmarks/README.md](benchmarks/README.md) for full details.
+
 
 ---
 
@@ -196,8 +196,6 @@ User pastes their JWT once → stored in `sessionStorage` → SignalR connects w
 `accessTokenFactory` → ASP.NET validates JWT → events stream. Token expiry is detected
 from the JWT `exp` claim — the token bar reappears automatically 60s before expiry.
 
-> See [src/SinkSharp.Sinks.Dashboard/README.md](src/SinkSharp.Sinks.Dashboard/README.md)
-> for full architecture, multi-pod setup, path prefix config, and auth details.
 
 ---
 
