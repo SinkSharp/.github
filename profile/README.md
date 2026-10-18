@@ -20,7 +20,7 @@
 | Caller blocked by slow sink | No (430 ns) | Yes | **Async isolated** |
 | Sustained 8 threads | 2,522 μs | 4,371 μs | **1.7× faster** |
 
-
+See [benchmarks/README.md](benchmarks/README.md) for methodology and raw numbers.
 
 ---
 
@@ -100,8 +100,8 @@ Mounts on your existing ASP.NET Core app at the same host and port. No extra pro
 ### Install
 
 ```bash
-dotnet add package SinkSharp.Core
-dotnet add package SinkSharp.Sinks.Dashboard --prerelease
+dotnet add package SinkSharp.Core --version 1.0.4
+dotnet add package SinkSharp.Sinks.Dashboard --version 1.0.0
 ```
 
 ### Option 1 — Single pod / local dev (Web API / Minimal API)
@@ -173,6 +173,10 @@ app.UseSinkSharpDashboard("/sinksharp/dashboard");
 app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
     opts.RequireAuthorization("AdminOnly"));  // your policy in AddAuthorization()
 
+// Role check — inline, no named policy needed
+app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
+    opts.RequireRole("Admin", "DevOps"));
+
 // Shared token — simple password, no auth middleware needed
 app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
     opts.UseToken(builder.Configuration["Dashboard:Token"]));
@@ -193,9 +197,14 @@ app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
 **How bearer mode works:** The dashboard page always loads — no 401, no blocked page.
 Without a valid token the page opens but shows no log events (same "Waiting…" state).
 User pastes their JWT once → stored in `sessionStorage` → SignalR connects with
-`accessTokenFactory` → ASP.NET validates JWT → events stream. Token expiry is detected
-from the JWT `exp` claim — the token bar reappears automatically 60s before expiry.
+`accessTokenFactory` → ASP.NET validates JWT → events stream in real time without a page refresh.
+Token expiry is detected from the JWT `exp` claim — the token bar reappears automatically 60s before expiry.
 
+> See [src/SinkSharp.Sinks.Dashboard/README.md](src/SinkSharp.Sinks.Dashboard/README.md)
+> for full architecture, multi-pod setup, path prefix config, and auth details.
+>
+> See [samples/SinkSharp.DashboardAuthSample](samples/SinkSharp.DashboardAuthSample)
+> for a runnable project showing all auth modes with working code.
 
 ---
 
@@ -267,6 +276,7 @@ builder.Services.AddSinkSharp(options => options
 | [SinkSharp.HealthCheckSample](samples/SinkSharp.HealthCheckSample) | ASP.NET health check integration |
 | [SinkSharp.ScopedLoggingSample](samples/SinkSharp.ScopedLoggingSample) | Scoped logging with ILogger |
 | [SinkSharp.AspNetSample](samples/SinkSharp.AspNetSample) | Full ASP.NET Core integration |
+| [SinkSharp.DashboardAuthSample](samples/SinkSharp.DashboardAuthSample) | All dashboard auth modes |
 
 Full runnable samples: [SinkSharp-Logging-Samples](https://github.com/SinkSharp/SinkSharp-Logging-Samples)
 

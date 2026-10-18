@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.0.0] — Dashboard stable — 2026-10-18
+
+### SinkSharp.Sinks.Dashboard 1.0.0
+
+First stable release of the dashboard package. API surface unchanged from `1.0.6-preview`.
+
+**Bug fixes**
+- Fixed: Live logs now stream correctly in bearer JWT auth mode without requiring a page refresh —
+  `accessTokenFactory` now reads the JWT live from `sessionStorage` on every connect and reconnect
+  attempt. Previously a stale closure caused reconnects after token refresh or network hiccup to
+  silently stop receiving events until the browser was manually refreshed
+- Fixed: JS syntax error (`Uncaught SyntaxError: Unexpected token ';'` at dashboard:751) — a
+  misplaced `return` statement inside `selectRow()` caused the entire script block to fail to parse,
+  preventing SignalR from connecting in all auth modes
+
+---
+
+## [1.0.4] — 2026-10-18
+
+### SinkSharp.Core 1.0.4
+
+**Bug fixes**
+- Fixed: `DisposeAsync()` is now idempotent — calling it multiple times no longer throws
+  `ObjectDisposedException`. Uses `Volatile.Read` / `Interlocked.Exchange` guard so the
+  `CancellationTokenSource` is only cancelled and disposed once regardless of call count
+
+---
+
 ## [1.0.6-preview] — 2026-10-17
 
 ### SinkSharp.Sinks.Dashboard 1.0.6-preview
@@ -41,11 +69,12 @@
   - `opts.RequireAuthorization()` — any authenticated user (uses your app's existing auth)
   - `opts.RequireAuthorization("PolicyName")` — named policy you define in `AddAuthorization()`
   - `opts.RequireRole("Admin", "DevOps")` — inline role check, no named policy needed
+  - `opts.UseToken("secret")` — shared password, no `AddAuthentication()` needed
   - `opts.AllowFrom("10.0.0.0/8")` — IP allowlist, no user auth needed
   - `opts.UseBasicAuth("user", "pass")` — HTTP Basic auth, no `AddAuthentication()` needed
   - `opts.ConfigureEndpoints(ep => ...)` — full control escape hatch for custom policies,
     rate limiting, CORS, or any other ASP.NET endpoint configuration
-- All auth options apply to all three dashboard endpoints (UI, `/hub`, `/stats`) consistently
+- All auth options apply to hub and stats endpoints consistently
 - Default behaviour unchanged — no auth when `configure` is not passed
 
 ---
@@ -157,7 +186,7 @@
 - `SinkSharpHealthCheck` — Healthy/Degraded/Unhealthy based on queue pressure
 - `AzureContextEnricher` — region, resource group, slot name, pod name
 
-**Performance** (vs Serilog, .NET 9.0.16 Windows 11 X64)
+**Performance** (vs Serilog, .NET 9.0.20 Windows 11 X64)
 - 4.0×–4.5× lower hot-path latency
 - Zero lock contentions at 32 concurrent producers
 - `Enqueued == Processed` verified end-to-end
