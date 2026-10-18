@@ -281,6 +281,9 @@ builder.Services.AddSinkSharp(options => options
 Full runnable samples: [SinkSharp-Logging-Samples](https://github.com/SinkSharp/SinkSharp-Logging-Samples)
 
 ---
+## Dashboard UI 
+<img width="1917" height="905" alt="SinkSharp_Dashboard" src="https://github.com/user-attachments/assets/3e9438c1-b5c9-4ca8-b025-6872b3ccad12" />
+
 
 ## Links
 
