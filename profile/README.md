@@ -72,6 +72,12 @@ builder.Services.AddSinkSharp(options => options
     .WithPiiMasking()
     .WriteTo(new ColoredConsoleSink())
     .WriteTo(new RollingFileSink("logs/app.jsonl")));
+
+// One-line correlation middleware — ASP.NET Core Web API / Minimal API only.
+// Reads X-Correlation-Id header, generates if missing, sets CorrelationContext,
+// writes response header. Replaces the manual app.Use() block.
+// Worker Services and Console Apps: use CorrelationContext.Use(id) directly in your code.
+app.UseSinkSharp();
 ```
 
 ---
@@ -92,16 +98,20 @@ Mounts on your existing ASP.NET Core app at the same host and port. No extra pro
 - 📊 Queue stats — pending / processed / dropped (polled every 2s)
 - 🛡️ PII masked values displayed correctly
 - ⏱️ Time filter — All / last 5m / 30m / 1h
-- 📥 Export visible events as JSON
+- 📥 Export visible events as JSON or CSV
+- 🔡 Regex search toggle — switch between plain text and RegExp search
+- 🔁 Reconnect indicator — shows retry count during SignalR reconnect
 - 🌙 Dark / light theme toggle
 - 🌐 Works with `UsePathBase()`, reverse proxy, Kubernetes ingress
+- 📋 Copy correlation ID to clipboard — ⧉ button in detail panel
+- 🔗 Shareable URL with filters — paste pre-filtered view to a colleague
 - 🔐 Auth: bearer JWT, shared token, IP allowlist, Basic auth
 
 ### Install
 
 ```bash
-dotnet add package SinkSharp.Core --version 1.0.4
-dotnet add package SinkSharp.Sinks.Dashboard --version 1.0.0
+dotnet add package SinkSharp.Core --version 1.0.5
+dotnet add package SinkSharp.Sinks.Dashboard --version 1.0.1
 ```
 
 ### Option 1 — Single pod / local dev (Web API / Minimal API)
@@ -245,17 +255,50 @@ builder.Services.AddSinkSharp(options => options
     .MinimumLevelFor("Microsoft.AspNetCore", LogLevel.Warning)
     .MinimumLevelFor("System", LogLevel.Error)
 
-    // Built-in enrichers
+    // Built-in enrichers — work in all project types
     .WithCorrelationId()                          // AsyncLocal correlation ID
-    .WithEnvironment("MyApp", "Production")       // AppName + EnvironmentName
+    .WithEnvironment("MyApp", "Production")       // AppName, Environment, MachineName
+    .WithMachineName()                            // MachineName only (skip WithEnvironment)
     .WithPiiMasking()                             // email/phone/card masking
     .WithAzureContext()                           // region, resource group, pod
 
-    // Sinks
-    .WriteTo(new ColoredConsoleSink())
-    .WriteTo(new RollingFileSink("logs/app.jsonl"))
-    .WithDashboard(out dashSink)                  // real-time web dashboard
+    // HTTP context enrichers — Web API / Minimal API only
+    // silently skip when HttpContext is null (Worker Service, Console App, background jobs)
+    .WithRequestId(accessor)                      // RequestId from HttpContext.TraceIdentifier
+    .WithUserContext(accessor)                    // UserId, UserName, UserRole (authenticated only)
+    .WithRequestPath(accessor)                    // HttpMethod + RequestPath
+    .WithElapsedTime(accessor)                    // ElapsedMs since request start
+
+    // Structured filter — drops events before enqueue, zero allocation for dropped events
+    .Filter(e => !e.MessageTemplate.Contains("health"))  // drop health check noise
+    .Filter(e => e.Level >= LogLevel.Warning ||
+                 e.Category.StartsWith("MyApp"))         // composite condition
+
+    // Conditional enrichment — enricher only runs when predicate returns true
+    // Example: only stamp the current UTC timestamp on Warning+ events (skip Debug/Info)
+    .WithEnricher(new TimestampEnricher(), when: e => e.Level >= LogLevel.Warning)
+    // TimestampEnricher is defined in SinkSharp.AdvancedEnricherSample — implement IEnricher
+    // and add bag.AddOrUpdate("UtcTimestamp", DateTime.UtcNow.ToString("O"));
+
+    // Sinks with per-sink minimum level
+    .WriteTo(new ColoredConsoleSink(),                   LogLevel.Debug)
+    .WriteTo(new RollingFileSink("logs/app.jsonl"),      LogLevel.Warning)
+    .WithDashboard(out dashSink,                         LogLevel.Information)
 );
+
+// One-line middleware (Web API / Minimal API): X-Correlation-Id + ElapsedTime stopwatch
+app.UseSinkSharp();
+
+// Optional DI helpers for HTTP context enrichers (register only what you need)
+builder.Services.AddHttpContextAccessor();    // required before the helpers below
+builder.Services.AddSinkSharpRequestId();    // stamps RequestId
+builder.Services.AddSinkSharpUserContext();  // stamps UserId, UserName, UserRole
+builder.Services.AddSinkSharpRequestPath(); // stamps HttpMethod, RequestPath
+builder.Services.AddSinkSharpElapsedTime(); // stamps ElapsedMs
+
+// Dynamic level at runtime — no restart needed
+SinkSharpLoggerFactory.SetGlobalLevel(LogLevel.Debug);  // enable debug temporarily
+SinkSharpLoggerFactory.SetGlobalLevel(LogLevel.None);   // restore startup level
 ```
 
 ---
@@ -264,6 +307,7 @@ builder.Services.AddSinkSharp(options => options
 
 | Sample | What it shows |
 |---|---|
+| [SinkSharp.AdvancedEnricherSample](samples/SinkSharp.AdvancedEnricherSample) | All v1.1 enrichers, filter, conditional enrichment, runtime level |
 | [SinkSharp.Sample](samples/SinkSharp.Sample) | Console app, no DI |
 | [SinkSharp.WebApiSample](samples/SinkSharp.WebApiSample) | Web API with MEL |
 | [SinkSharp.WorkerSample](samples/SinkSharp.WorkerSample) | Background Worker |

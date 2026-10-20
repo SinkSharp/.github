@@ -1,3 +1,82 @@
+## [1.0.5] — 2026-10-20
+
+### SinkSharp.Core 1.0.5
+
+**New features**
+- Added `WithRequestId(accessor)` enricher — stamps `RequestId` from `HttpContext.TraceIdentifier`
+  on every log event. Captures on the caller thread (safe — `HttpContext` is not accessible on the
+  drainer thread). Works alongside `WithCorrelationId()` — both properties coexist on the same event.
+  Requires `builder.Services.AddHttpContextAccessor()`. Register via `AddSinkSharpRequestId()` in DI.
+- Added `WithUserContext(accessor)` enricher — stamps `UserId` (sub), `UserName` (name), `UserRole`
+  (role) from the authenticated `ClaimsPrincipal`. Safe for anonymous and unauthenticated requests —
+  silently skips events when `Identity.IsAuthenticated` is false (anonymous endpoints, health checks,
+  pre-auth middleware). Custom claim types via `WithUserContext(accessor, claims: new[] { "sub", "email" })`.
+  Register via `AddSinkSharpUserContext()` in DI.
+- Added `app.UseSinkSharp()` middleware — handles the full `X-Correlation-Id` lifecycle in one call:
+  reads from incoming header, generates a 12-char GUID if absent, sets `CorrelationContext.Current`
+  (flows through all awaits), writes `X-Correlation-Id` to the response. Replaces the manual
+  middleware block that every sample previously required. Extension method on `IApplicationBuilder`
+  via `SinkSharp.Core.Middleware` namespace.
+- Added `WriteTo(sink, minLevel)` overload — per-sink minimum log level independent of the global
+  minimum. Events below `minLevel` are silently skipped for that sink only. `LogLevel.None` (the
+  default) means no per-sink guard. Compatible with all sinks including `WithDashboard(out sink, minLevel)`.
+- Added `AddSinkSharpRequestId()` and `AddSinkSharpUserContext()` DI registration helpers in
+  `ServiceCollectionExtensions` — resolve `IHttpContextAccessor` from the built container after
+  `AddSinkSharp()` completes, avoiding the early-container build timing issue.
+- Added `WithMachineName()` enricher — stamps `MachineName` standalone, without requiring the
+  full `WithEnvironment(app, env)` block. Useful in containerised environments where you want
+  the pod hostname only. Reads `Environment.MachineName` once at startup — zero runtime cost.
+- Added `WithRequestPath(accessor)` enricher — stamps `HttpMethod` and `RequestPath` from
+  `HttpContext.Request` on every log event. Invaluable for correlating logs to specific API routes.
+  Web API / Minimal API only — silently skips outside HTTP requests.
+  Register via `AddSinkSharpRequestPath()` in DI.
+- Added `WithElapsedTime(accessor)` enricher — stamps `ElapsedMs` (milliseconds since request
+  start) on every log event. Requires `app.UseSinkSharp()` to start the stopwatch at request entry.
+  Shows exactly when in the request lifecycle each log event occurred — no timestamp arithmetic.
+  Web API / Minimal API only. Register via `AddSinkSharpElapsedTime()` in DI.
+- Added `.Filter(predicate)` — structured event filter. Events for which the predicate returns
+  `false` are dropped before enqueue — zero allocation for dropped events (returned to pool).
+  Multiple filters are AND-ed. Example: `.Filter(e => !e.MessageTemplate.Contains("health"))`.
+- Added `.WithEnricher(enricher, when: predicate)` — conditional enrichment. The predicate runs
+  on the drainer thread; the enricher only runs when it returns `true`. Useful for expensive
+  enrichers that should only run for specific levels or categories.
+  Example: `.WithEnricher(new ExpensiveEnricher(), when: e => e.Level >= LogLevel.Warning)`.
+- Added `SinkSharpLoggerFactory.SetGlobalLevel(LogLevel)` — changes the minimum log level at
+  runtime without restarting the application. Backed by a `volatile` field — thread-safe, no lock.
+  Set to `LogLevel.None` to restore normal level resolution from startup config.
+  Example: call from a management endpoint to temporarily enable debug logs in production.
+- Added `AddSinkSharpRequestPath()` and `AddSinkSharpElapsedTime()` DI registration helpers.
+- `app.UseSinkSharp()` now also starts a `Stopwatch` in `HttpContext.Items` at request entry
+  for use by `WithElapsedTime()` — all per-request SinkSharp concerns in one middleware call.
+
+---
+
+## [1.0.1] — Dashboard — 2026-10-20
+
+### SinkSharp.Sinks.Dashboard 1.0.1
+
+**New features**
+- Copy correlation ID to clipboard — a ⧉ button now appears inline next to the correlation ID in
+  the detail panel. One click copies the raw ID string. Button shows ✓ for 1.5s to confirm. Does
+  not trigger row selection (`stopPropagation`). Falls back to `execCommand` on non-HTTPS connections.
+- Shareable URL with active filters — active filters (level, service, correlation, search, time) are
+  encoded into the URL hash on every filter change using `history.replaceState`. Format:
+  `#level=ERR&service=OrderApi&corr=abc123&q=payment&time=60`. Filters are restored from the hash
+  on page load before connecting to the hub — share a pre-filtered view with a colleague by copying
+  the browser URL. Hash is cleared when ❌ Clear all is clicked.
+- Regex search toggle — `.*` button next to search input switches between plain substring match
+  and `RegExp` search. Invalid regex falls back silently and shows a red border on the input.
+- Buffer size visible in stats bar — buffer capacity now read from the server stats endpoint
+  (`bufferCapacity` field) rather than hardcoded to 500. Reflects the actual `bufferSize` configured
+  in `WithDashboard(out sink, bufferSize: N)`.
+- CSV export alongside JSON — Export button now offers JSON (existing) and CSV. CSV format:
+  `Timestamp,Level,Service,CorrelationId,Message` with proper quoting and escaping. Pure client-side.
+- Reconnect indicator with retry count — topbar now shows `Reconnecting (attempt N)…` during
+  SignalR automatic reconnect, and flashes `Reconnected` for 2 seconds on successful reconnect,
+  before returning to `Live`. Uses SignalR's `onreconnecting` / `onreconnected` events.
+
+---
+
 # Changelog
 
 ## [1.0.0] — Dashboard stable — 2026-10-18
