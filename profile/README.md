@@ -213,7 +213,7 @@ Token expiry is detected from the JWT `exp` claim — the token bar reappears au
 > See [src/SinkSharp.Sinks.Dashboard/README.md](src/SinkSharp.Sinks.Dashboard/README.md)
 > for full architecture, multi-pod setup, path prefix config, and auth details.
 >
-> See [samples/SinkSharp.DashboardAuthSample](samples/SinkSharp.DashboardAuthSample)
+> See [SinkSharp.DashboardAuthSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.DashboardAuthSample)
 > for a runnable project showing all auth modes with working code.
 
 ---
@@ -307,20 +307,20 @@ SinkSharpLoggerFactory.SetGlobalLevel(LogLevel.None);   // restore startup level
 
 | Sample | What it shows |
 |---|---|
-| [SinkSharp.AdvancedEnricherSample](samples/SinkSharp.AdvancedEnricherSample) | All v1.1 enrichers, filter, conditional enrichment, runtime level |
-| [SinkSharp.Sample](samples/SinkSharp.Sample) | Console app, no DI |
-| [SinkSharp.WebApiSample](samples/SinkSharp.WebApiSample) | Web API with MEL |
-| [SinkSharp.WorkerSample](samples/SinkSharp.WorkerSample) | Background Worker |
-| [SinkSharp.MinimalApiSample](samples/SinkSharp.MinimalApiSample) | Minimal API |
-| [SinkSharp.MultiPodSample](samples/SinkSharp.MultiPodSample) | Redis multi-pod + all auth options |
-| [SinkSharp.AzureSample](samples/SinkSharp.AzureSample) | Azure context enricher + AKS deploy |
-| [SinkSharp.CustomSinkSample](samples/SinkSharp.CustomSinkSample) | Custom sink implementation |
-| [SinkSharp.CustomEnricherSample](samples/SinkSharp.CustomEnricherSample) | Custom enricher |
-| [SinkSharp.MultiSinkSample](samples/SinkSharp.MultiSinkSample) | Console + File + Dashboard |
-| [SinkSharp.HealthCheckSample](samples/SinkSharp.HealthCheckSample) | ASP.NET health check integration |
-| [SinkSharp.ScopedLoggingSample](samples/SinkSharp.ScopedLoggingSample) | Scoped logging with ILogger |
-| [SinkSharp.AspNetSample](samples/SinkSharp.AspNetSample) | Full ASP.NET Core integration |
-| [SinkSharp.DashboardAuthSample](samples/SinkSharp.DashboardAuthSample) | All dashboard auth modes |
+| [SinkSharp.AdvancedEnricherSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.AdvancedEnricherSample) | All v1.1 enrichers, filter, conditional enrichment, runtime level |
+| [SinkSharp.Sample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.Sample) | Console app, no DI |
+| [SinkSharp.WebApiSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.WebApiSample) | Web API with MEL |
+| [SinkSharp.WorkerSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.WorkerSample) | Background Worker |
+| [SinkSharp.MinimalApiSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.MinimalApiSample) | Minimal API |
+| [SinkSharp.MultiPodSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.MultiPodSample) | Redis multi-pod + all auth options |
+| [SinkSharp.AzureSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.AzureSample) | Azure context enricher + AKS deploy |
+| [SinkSharp.CustomSinkSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.CustomSinkSample) | Custom sink implementation |
+| [SinkSharp.CustomEnricherSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.CustomEnricherSample) | Custom enricher |
+| [SinkSharp.MultiSinkSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.MultiSinkSample) | Console + File + Dashboard |
+| [SinkSharp.HealthCheckSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.HealthCheckSample) | ASP.NET health check integration |
+| [SinkSharp.ScopedLoggingSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.ScopedLoggingSample) | Scoped logging with ILogger |
+| [SinkSharp.AspNetSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.AspNetSample) | Full ASP.NET Core integration |
+| [SinkSharp.DashboardAuthSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.DashboardAuthSample) | All dashboard auth modes |
 
 Full runnable samples: [SinkSharp-Logging-Samples](https://github.com/SinkSharp/SinkSharp-Logging-Samples)
 
