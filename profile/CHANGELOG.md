@@ -1,3 +1,25 @@
+## [1.0.6] — 2026-10-21
+
+### SinkSharp.Core 1.0.6
+
+**New features**
+- `AddSinkSharpRequestId()` — DI helper that stamps `RequestId` from `HttpContext.TraceIdentifier` on every HTTP request log event. Requires `builder.Services.AddHttpContextAccessor()`.
+- `AddSinkSharpUserContext()` — DI helper that stamps `UserId`, `UserName`, `UserRole` from the authenticated `ClaimsPrincipal`
+- `AddSinkSharpRequestPath()` — DI helper that stamps `HttpMethod` and `RequestPath` on every HTTP request log event.
+- `AddSinkSharpElapsedTime()` — DI helper that stamps `ElapsedMs` (milliseconds since request start) on every log event within an HTTP request. Requires `app.UseSinkSharp()` in the pipeline.
+- `app.UseSinkSharp()` extended — in addition to `X-Correlation-Id` lifecycle, now starts the request stopwatch used by `AddSinkSharpElapsedTime()`.
+
+---
+
+## [1.0.1] — File — 2026-10-21
+
+### SinkSharp.Sinks.File 1.0.1
+
+**Bug fix**
+- Log events now appear on disk immediately after being written. Previously Info, Warning, and Debug events were buffered by the OS and only flushed to disk when an Error or Critical event occurred, or when the application stopped. Every write is now flushed immediately.
+
+---
+
 ## [1.0.5] — 2026-10-20
 
 ### SinkSharp.Core 1.0.5
@@ -9,8 +31,7 @@
   Requires `builder.Services.AddHttpContextAccessor()`. Register via `AddSinkSharpRequestId()` in DI.
 - Added `WithUserContext(accessor)` enricher — stamps `UserId` (sub), `UserName` (name), `UserRole`
   (role) from the authenticated `ClaimsPrincipal`. Safe for anonymous and unauthenticated requests —
-  silently skips events when `Identity.IsAuthenticated` is false (anonymous endpoints, health checks,
-  pre-auth middleware). Custom claim types via `WithUserContext(accessor, claims: new[] { "sub", "email" })`.
+. Custom claim types via `WithUserContext(accessor, claims: new[] { "sub", "email" })`.
   Register via `AddSinkSharpUserContext()` in DI.
 - Added `app.UseSinkSharp()` middleware — handles the full `X-Correlation-Id` lifecycle in one call:
   reads from incoming header, generates a 12-char GUID if absent, sets `CorrelationContext.Current`
@@ -18,8 +39,7 @@
   middleware block that every sample previously required. Extension method on `IApplicationBuilder`
   via `SinkSharp.Core.Middleware` namespace.
 - Added `WriteTo(sink, minLevel)` overload — per-sink minimum log level independent of the global
-  minimum. Events below `minLevel` are silently skipped for that sink only. `LogLevel.None` (the
-  default) means no per-sink guard. Compatible with all sinks including `WithDashboard(out sink, minLevel)`.
+  minimum. `LogLevel.None` (the default) means no per-sink guard. Compatible with all sinks including `WithDashboard(out sink, minLevel)`.
 - Added `AddSinkSharpRequestId()` and `AddSinkSharpUserContext()` DI registration helpers in
   `ServiceCollectionExtensions` — resolve `IHttpContextAccessor` from the built container after
   `AddSinkSharp()` completes, avoiding the early-container build timing issue.
@@ -28,7 +48,6 @@
   the pod hostname only. Reads `Environment.MachineName` once at startup — zero runtime cost.
 - Added `WithRequestPath(accessor)` enricher — stamps `HttpMethod` and `RequestPath` from
   `HttpContext.Request` on every log event. Invaluable for correlating logs to specific API routes.
-  Web API / Minimal API only — silently skips outside HTTP requests.
   Register via `AddSinkSharpRequestPath()` in DI.
 - Added `WithElapsedTime(accessor)` enricher — stamps `ElapsedMs` (milliseconds since request
   start) on every log event. Requires `app.UseSinkSharp()` to start the stopwatch at request entry.

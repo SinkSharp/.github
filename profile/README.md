@@ -7,6 +7,10 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/SinkSharp/.github/blob/main/profile/LICENSE)
 
 ---
+## Dashboard UI
+
+<img width="1917" height="905" alt="SinkSharp_Dashboard" src="https://github.com/user-attachments/assets/3e9438c1-b5c9-4ca8-b025-6872b3ccad12" />
+
 
 ## Why SinkSharp?
 
@@ -110,7 +114,7 @@ Mounts on your existing ASP.NET Core app at the same host and port. No extra pro
 ### Install
 
 ```bash
-dotnet add package SinkSharp.Core --version 1.0.5
+dotnet add package SinkSharp.Core --version 1.0.6
 dotnet add package SinkSharp.Sinks.Dashboard --version 1.0.1
 ```
 
@@ -263,7 +267,6 @@ builder.Services.AddSinkSharp(options => options
     .WithAzureContext()                           // region, resource group, pod
 
     // HTTP context enrichers — Web API / Minimal API only
-    // silently skip when HttpContext is null (Worker Service, Console App, background jobs)
     .WithRequestId(accessor)                      // RequestId from HttpContext.TraceIdentifier
     .WithUserContext(accessor)                    // UserId, UserName, UserRole (authenticated only)
     .WithRequestPath(accessor)                    // HttpMethod + RequestPath
@@ -289,12 +292,12 @@ builder.Services.AddSinkSharp(options => options
 // One-line middleware (Web API / Minimal API): X-Correlation-Id + ElapsedTime stopwatch
 app.UseSinkSharp();
 
-// Optional DI helpers for HTTP context enrichers (register only what you need)
-builder.Services.AddHttpContextAccessor();    // required before the helpers below
-builder.Services.AddSinkSharpRequestId();    // stamps RequestId
-builder.Services.AddSinkSharpUserContext();  // stamps UserId, UserName, UserRole
-builder.Services.AddSinkSharpRequestPath(); // stamps HttpMethod, RequestPath
-builder.Services.AddSinkSharpElapsedTime(); // stamps ElapsedMs
+// HTTP context enrichers — add AddHttpContextAccessor() first, then register what you need
+builder.Services.AddHttpContextAccessor();   // required — register this before any enricher below
+builder.Services.AddSinkSharpRequestId();   // stamps RequestId
+builder.Services.AddSinkSharpRequestPath(); // stamps HttpMethod + RequestPath
+builder.Services.AddSinkSharpElapsedTime(); // stamps ElapsedMs since request start
+builder.Services.AddSinkSharpUserContext(); // stamps UserId, UserName, UserRole
 
 // Dynamic level at runtime — no restart needed
 SinkSharpLoggerFactory.SetGlobalLevel(LogLevel.Debug);  // enable debug temporarily
@@ -325,9 +328,6 @@ SinkSharpLoggerFactory.SetGlobalLevel(LogLevel.None);   // restore startup level
 Full runnable samples: [SinkSharp-Logging-Samples](https://github.com/SinkSharp/SinkSharp-Logging-Samples)
 
 ---
-## Dashboard UI 
-<img width="1917" height="905" alt="SinkSharp_Dashboard" src="https://github.com/user-attachments/assets/3e9438c1-b5c9-4ca8-b025-6872b3ccad12" />
-
 
 ## Links
 
