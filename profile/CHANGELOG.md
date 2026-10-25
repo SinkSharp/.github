@@ -1,3 +1,68 @@
+## [1.0.8] — 2026-10-25 — Correctness fixes
+
+### Fixed
+- **Data race in LogPipeline** (`_taskBuffer` field shared across concurrent drainer stripes when 2+ sinks configured) — each `ProcessAsync` call now rents a `Task[]` from `ArrayPool<Task>.Shared` and returns it in `finally`
+- **Sink exception killed drainer stripe permanently** — per-sink `try/catch` around `EmitAsync`; all non-OCE exceptions increment `SinkFailureCount` and write to stderr; drainer continues; pool return in outer `finally`
+- **Pool leak on sink exception** — `ReturnToPool()` moved to outer `finally` block, fires even if every sink throws
+- **`TotalDropped` counter always returned 0** — `BoundedChannel.TryWrite` with `DropOldest` always returns `true`; drop detection replaced with atomic per-stripe occupancy counter (`_stripeOccupancy`); race-free under 32 concurrent producers
+- **Critical drainer `IndexOutOfRangeException`** — `stripeIdx: _stripeCount` (e.g. 8 on 8-core) caused silent fault on `_rescueQueues[8]` (indices 0–7 only); fixed to `stripeIdx: -1` sentinel; Error/Critical events now correctly drained at shutdown
+- **Shutdown race** — replaced plain `_disposed int` with state machine (`StateAccepting=0 / StateDraining=1 / StateStopped=2`) using `Interlocked.CompareExchange`; late producers enqueue safely; `DisposeAsync` is idempotent
+- **Category prefix filter false match** — `MinimumLevelFor("Microsoft")` previously matched `"MicrosoftExtra"`; now requires exact match or dot boundary
+
+### Added
+- `SinkSharpLogger.ClearCallerCaptures()` — clears static HTTP-context enricher registrations between test instances
+- `AsyncLogQueue.SinkFailureCount` — observable counter for sink errors without crashing the drainer
+- Benchmark suite: `EndToEndDurabilityBenchmark` now asserts `Processed == Enqueued - Dropped` for all 9 producer/sink combinations (throws `InvalidOperationException` on any violation)
+
+### Test suite
+- 230 tests, all passing (was 227 before this release)
+- New coverage: critical drainer index sentinel, per-stripe occupancy counter accuracy under 32 concurrent producers, state machine transitions
+
+---
+
+## [SinkSharp.Sinks.Dashboard 1.0.4] — 2026-10-25
+
+### Fixed
+- Dashboard in Worker Service and Console App no longer fails to connect — `DashboardServer` was missing `DashboardTokenStore` DI registration causing hub authentication to fail silently
+- Dashboard page now loads with the correct auth mode in Worker Service / Console App — `__AUTH_MODE__` placeholder was not replaced at server startup, causing the auth badge to appear and block real-time connections
+- CSV export renders special characters and non-ASCII text correctly — UTF-8 BOM added; previously Excel and Windows CSV viewers showed garbled em dashes and accented characters
+
+---
+
+## [SinkSharp.Sinks.File 1.0.2] — 2026-10-25
+
+### Changed
+- README updated with SinkSharp.Core 1.0.8 compatibility note and install commands
+- No functional changes — safe upgrade from 1.0.1
+
+---
+
+## [1.0.7] — 2026-10-22 — Bug fixes
+
+### Fixed
+- **Event delivery guaranteed at all producer counts** — `DrainAndStopAsync()` now awaits all drainer tasks before returning; previously it could return while drainer tasks were still processing events, silently losing the tail of each batch
+- **Lock contention eliminated from hot path** — `LogPipeline._enrichers` and `SinkSharpLogger._callerCaptures` previously held locks on every log call; replaced with volatile int count fields written once at startup; contentions reduced from 34+ to near-zero at 8+ concurrent threads
+
+---
+
+
+## [1.0.7] — 2026-10-22
+
+### SinkSharp.Core 1.0.7
+
+**Bug fixes**
+- Event delivery now guaranteed at all producer counts — `DrainAndStopAsync()` previously returned before all drainer tasks finished processing queued events when producers were slow or many. Every enqueued event is now processed before the drain completes.
+- Lock contention eliminated from hot path — `LogPipeline._enrichers` and `SinkSharpLogger._callerCaptures` had locks firing on every log call. Both lists are written once at startup and never mutated during logging. Replaced with `volatile int` count fields. Lock contentions reduced from 34+ to near-zero at 8+ threads.
+
+### SinkSharp.Sinks.Dashboard 1.0.4
+
+**Bug fixes**
+- Dashboard now connects and streams logs in Worker Service and Console App — `DashboardServer` was missing `DashboardTokenStore` DI registration, causing the SignalR hub to fail on every connection attempt
+- Dashboard page loads with correct auth mode in Worker Service and Console App — `__AUTH_MODE__` placeholder was not replaced in `DashboardServer`, causing the auth badge to show and block all connections
+- CSV export renders special characters correctly — UTF-8 BOM prepended so Excel and Windows CSV viewers decode em dashes and other non-ASCII log message characters correctly
+
+---
+
 ## [1.0.6] — 2026-10-21
 
 ### SinkSharp.Core 1.0.6

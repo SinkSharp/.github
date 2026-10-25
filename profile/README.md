@@ -1,339 +1,189 @@
-# SinkSharp
+# SinkSharp.Core
 
-**High-performance structured logging for .NET 9 — MEL-compatible, async-first, production-grade.**
+Fast structured logging pipeline for .NET 9.
 
 [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Core.svg)](https://www.nuget.org/packages/SinkSharp.Core)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/SinkSharp.Core.svg)](https://www.nuget.org/packages/SinkSharp.Core)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/SinkSharp/.github/blob/main/profile/LICENSE)
-
----
-## Dashboard UI
-
-<img width="1917" height="905" alt="SinkSharp_Dashboard" src="https://github.com/user-attachments/assets/3e9438c1-b5c9-4ca8-b025-6872b3ccad12" />
-
-
-## Why SinkSharp?
-
-| Metric | SinkSharp | Serilog | Result |
-|---|---|---|---|
-| Hot path no enrichers | 497 ns | 1,898 ns | **3.8× faster** |
-| Hot path all enrichers | 568 ns | 1,898 ns | **3.3× faster** |
-| P99 mixed load (80/15/5) | 448 ns | 2,246 ns | **5.0× faster** |
-| Allocation 0 props | 80 B | 161 B | **50% less** |
-| Allocation 3 props | 360 B | 473 B | **24% less** |
-| Lock contentions (hot path) | ~0 | 866 | **Near-zero vs 866** |
-| Caller blocked by slow sink | No (437 ns) | Yes | **Async isolated** |
-| Sustained 8 threads | 4,600 μs | 6,534 μs | **1.4× faster** |
-
-See [benchmarks/README.md](benchmarks/README.md) for methodology and raw numbers.
 
 ---
 
-## Packages
+## Installation
 
-| Package | Version | Purpose |
-|---|---|---|
-| [SinkSharp.Core](src/SinkSharp.Core) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Core.svg)](https://www.nuget.org/packages/SinkSharp.Core) | Core pipeline, enrichers, MEL adapter |
-| [SinkSharp.Sinks.Console](src/SinkSharp.Sinks.Console) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.Console.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.Console) | Coloured structured console output |
-| [SinkSharp.Sinks.File](src/SinkSharp.Sinks.File) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.File.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.File) | Rolling JSONL file sink (CLEF format) |
-| [SinkSharp.Sinks.Dashboard](src/SinkSharp.Sinks.Dashboard) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.Dashboard.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.Dashboard) | Embedded real-time web dashboard |
-| [SinkSharp.Enrichers.Azure](src/SinkSharp.Enrichers.Azure) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Enrichers.Azure.svg)](https://www.nuget.org/packages/SinkSharp.Enrichers.Azure) | Azure context (region, resource group, pod) |
+```bash
+dotnet add package SinkSharp.Core --version 1.0.8
+```
 
 ---
 
 ## Quick start
 
-```bash
-dotnet add package SinkSharp.Core
-dotnet add package SinkSharp.Sinks.Console
-dotnet add package SinkSharp.Sinks.File
-```
-
-```csharp
-var logger = SinkSharpBuilder
-    .Create()
-    .MinimumLevel(LogLevel.Information)
-    .MinimumLevelFor("Microsoft", LogLevel.Warning)
-    .WithCorrelationId()
-    .WithEnvironment("MyApp", "Production")
-    .WithPiiMasking()
-    .WriteTo(new ColoredConsoleSink(),              LogLevel.Debug)    // everything
-    .WriteTo(new RollingFileSink("logs/app.jsonl"), LogLevel.Warning)  // disk: warnings+
-    .BuildLogger("MyApp");
-
-logger.LogInformation("Order {OrderId} placed by {Customer}", 42, "alice@example.com");
-// alice@example.com → automatically PII-masked
-// CorrelationId → captured from AsyncLocal, stamped on every event in the request
-```
-
-### ASP.NET Core / MEL integration
-
-```csharp
-builder.Services.AddSinkSharp(options => options
-    .MinimumLevel(LogLevel.Information)
-    .MinimumLevelFor("Microsoft", LogLevel.Warning)
-    .WithCorrelationId()
-    .WithEnvironment("MyApp", builder.Environment.EnvironmentName)
-    .WithPiiMasking()
-    .WriteTo(new ColoredConsoleSink(),              LogLevel.Debug)
-    .WriteTo(new RollingFileSink("logs/app.jsonl"), LogLevel.Warning));
-
-// One-line correlation middleware — ASP.NET Core Web API / Minimal API only.
-// Reads X-Correlation-Id header, generates if missing, sets CorrelationContext,
-// writes response header. Replaces the manual app.Use() block.
-// Worker Services and Console Apps: use CorrelationContext.Use(id) directly in your code.
-app.UseSinkSharp();
-```
-
----
-
-## Dashboard
-
-SinkSharp includes an embedded real-time log dashboard — no separate log viewer licence required.
-Mounts on your existing ASP.NET Core app at the same host and port. No extra process, no extra port.
-
-### Features
-
-- ⚡ Real-time event stream via SignalR WebSocket
-- 🕑 Buffer replay — last 500 events shown immediately on connect
-- 🔍 Filter by level (Error / Critical / Warning / Info / Debug)
-- 🔎 Full-text search by message, service, or correlation ID
-- 🔗 Click correlation ID to trace a complete request
-- 📋 Properties tab with structured key/value display
-- 📊 Queue stats — pending / processed / dropped (polled every 2s)
-- 🛡️ PII masked values displayed correctly
-- ⏱️ Time filter — All / last 5m / 30m / 1h
-- 📥 Export visible events as JSON or CSV
-- 🔡 Regex search toggle — switch between plain text and RegExp search
-- 🔁 Reconnect indicator — shows retry count during SignalR reconnect
-- 🌙 Dark / light theme toggle
-- 🌐 Works with `UsePathBase()`, reverse proxy, Kubernetes ingress
-- 📋 Copy correlation ID to clipboard — ⧉ button in detail panel
-- 🔗 Shareable URL with filters — paste pre-filtered view to a colleague
-- 🔐 Auth: bearer JWT, shared token, IP allowlist, Basic auth
-
-### Install
-
-```bash
-dotnet add package SinkSharp.Core --version 1.0.6
-dotnet add package SinkSharp.Sinks.Dashboard --version 1.0.3
-```
-
-### Option 1 — Single pod / local dev (Web API / Minimal API)
-
-```csharp
-DashboardSink dashSink = null!;
-
-// 1. Register SinkSharp with dashboard sink
-builder.Services.AddSinkSharp(options => options
-    .WithDashboard(out dashSink, minLevel: LogLevel.Information)
-    .WriteTo(new ColoredConsoleSink(),              LogLevel.Debug)
-    .WriteTo(new RollingFileSink("logs/app.jsonl"), LogLevel.Warning));
-
-// 2. Register dashboard DI (in-memory SignalR — single pod)
-builder.Services.AddSinkSharpDashboard(dashSink);
-
-var app = builder.Build();
-
-// 3. Mount dashboard on your app — same host, same port
-app.UseSinkSharpDashboard("/sinksharp/dashboard");
-// → https://localhost:5001/sinksharp/dashboard
-```
-
-### Option 2 — Worker Service / Console App
-
 ```csharp
 var builder = SinkSharpBuilder.Create()
-    .WithDashboard(out var dashSink)
-    .WriteTo(new ColoredConsoleSink());
+    .WriteTo(new ColoredConsoleSink(),              LogLevel.Debug)
+    .WriteTo(new RollingFileSink("logs/app.jsonl"), LogLevel.Warning);
 
-var logger    = builder.BuildLogger("MyApp");
-var dashboard = new DashboardServer(dashSink, port: 5341, queue: builder.GetQueue());
-await dashboard.StartAsync();
-// → http://localhost:5341
+var logger = builder.BuildLogger("MyApp");
+logger.LogInformation("Order {OrderId} placed by {User}", 42, "alice");
 ```
 
-### Option 3 — Multi-pod / Kubernetes (Redis backplane)
-
-```bash
-dotnet add package Microsoft.AspNetCore.SignalR.StackExchangeRedis
-```
-
-```csharp
-// Replace AddSinkSharpDashboard() with AddSinkSharpDashboardRedis()
-// Safe to reuse your existing Redis — SinkSharp uses its own channel prefix
-builder.Services.AddSinkSharpDashboardRedis(dashSink, signalR =>
-    signalR.AddStackExchangeRedis(
-        builder.Configuration["Redis:ConnectionString"],
-        options => options.Configuration.ChannelPrefix =
-            StackExchange.Redis.RedisChannel.Literal("MyApp.SinkSharp")));
-
-app.UseSinkSharpDashboard("/sinksharp/dashboard"); // unchanged
-```
-
-```
-Without Redis:  Browser → Pod A only  (Pod B invisible)
-With Redis:     Browser → Pod A + Pod B merged  ✅  (no sticky sessions needed)
-```
-
-### Dashboard authentication
-
-```csharp
-// No auth — default (local dev, internal tools behind VPN)
-app.UseSinkSharpDashboard("/sinksharp/dashboard");
-
-// Bearer JWT — page always loads, token bar shown, user pastes JWT
-// Hub and stats protected — ASP.NET validates JWT from browser
-// Supports custom policies (PermissionAttribute, claims, roles)
-app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
-    opts.RequireAuthorization("AdminOnly"));  // your policy in AddAuthorization()
-
-// Role check — inline, no named policy needed
-app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
-    opts.RequireRole("Admin", "DevOps"));
-
-// Shared token — simple password, no auth middleware needed
-app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
-    opts.UseToken(builder.Configuration["Dashboard:Token"]));
-
-// IP allowlist — no user auth needed
-app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
-    opts.AllowFrom("10.0.0.0/8", "192.168.0.0/16"));
-
-// Basic auth — browser native prompt, no AddAuthentication() needed
-app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
-    opts.UseBasicAuth("admin", "secret123"));
-
-// Full control — any ASP.NET endpoint configuration
-app.UseSinkSharpDashboard("/sinksharp/dashboard", opts =>
-    opts.ConfigureEndpoints(ep => ep.RequireRateLimiting("fixed")));
-```
-
-**How bearer mode works:** The dashboard page always loads — no 401, no blocked page.
-Without a valid token the page opens but shows no log events (same "Waiting…" state).
-User pastes their JWT once → stored in `sessionStorage` → SignalR connects with
-`accessTokenFactory` → ASP.NET validates JWT → events stream in real time without a page refresh.
-Token expiry is detected from the JWT `exp` claim — the token bar reappears automatically 60s before expiry.
-
-> See [src/SinkSharp.Sinks.Dashboard/README.md](src/SinkSharp.Sinks.Dashboard/README.md)
-> for full architecture, multi-pod setup, path prefix config, and auth details.
->
-> See [SinkSharp.DashboardAuthSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.DashboardAuthSample)
-> for a runnable project showing all auth modes with working code.
-
----
-
-## Architecture
-
-```
-Caller thread (your code)
-    │
-    ▼ Log()  ← returns immediately, caller never blocks
-Striped async channel queue (1 channel per CPU core, max 16)
-    │   Bounded (DropOldest) for Info/Debug/Warn
-    │   Unbounded for Error/Critical — never dropped
-    │
-    ▼ Background drainer (thread pool)
-SinkSharp pipeline
-    ├── Enrichers (CorrelationId, Environment, PII masking, Azure context)
-    ├── Formatter (message template rendering)
-    └── Sinks (Console, File, Dashboard — all called on drainer thread)
-```
-
-**Key properties:**
-- Zero lock contention on the hot path (caller thread enqueues and returns)
-- CorrelationId captured on caller thread — AsyncLocal invisible on drainer
-- Object pooling — LogEvent objects reused across calls
-- MessageTemplate cached after first parse — zero repeated parsing cost
-
----
-
-## Configuration reference
+### With ASP.NET Core (MEL integration)
 
 ```csharp
 builder.Services.AddSinkSharp(options => options
+    .WriteTo(new ColoredConsoleSink())
+    .WriteTo(new RollingFileSink("logs/app.jsonl")));
+```
 
-    // Minimum level for all loggers
-    .MinimumLevel(LogLevel.Information)
+---
 
-    // Override level for a specific category (prefix match)
-    .MinimumLevelFor("Microsoft.AspNetCore", LogLevel.Warning)
-    .MinimumLevelFor("System", LogLevel.Error)
+## Enrichers
 
-    // Built-in enrichers — work in all project types
-    .WithCorrelationId()                          // AsyncLocal correlation ID
-    .WithEnvironment("MyApp", "Production")       // AppName, Environment, MachineName
-    .WithMachineName()                            // MachineName only (skip WithEnvironment)
-    .WithPiiMasking()                             // email/phone/card masking
-    .WithAzureContext()                           // region, resource group, pod
+```csharp
+builder.Services.AddSinkSharp(options => options
+    // All project types
+    .WithCorrelationId()                  // CorrelationId from AsyncLocal
+    .WithEnvironment("MyApp", "Prod")     // AppName, Environment, MachineName
+    .WithMachineName()                    // MachineName only (no app/env needed)
+    .WithPiiMasking()                     // email/card/SSN/phone masking
+    // .WithAzureContext()                // Azure App Service / AKS context
+    //                                     // requires SinkSharp.Enrichers.Azure package
 
-    // HTTP context enrichers — use DI helpers after Build() (see below)
+    // HTTP enrichers: use DI helpers below instead (v1.0.6+)
 
-    // Structured filter — drops events before enqueue, zero allocation for dropped events
-    .Filter(e => !e.MessageTemplate.Contains("health"))  // drop health check noise
-    .Filter(e => e.Level >= LogLevel.Warning ||
-                 e.Category.StartsWith("MyApp"))         // composite condition
+    // Structured filter — zero allocation for dropped events
+    .Filter(e => !e.MessageTemplate.Contains("health"))
 
-    // Conditional enrichment — enricher only runs when predicate returns true
-    // Example: only stamp the current UTC timestamp on Warning+ events (skip Debug/Info)
-    .WithEnricher(new TimestampEnricher(), when: e => e.Level >= LogLevel.Warning)
-    // TimestampEnricher is defined in SinkSharp.AdvancedEnricherSample — implement IEnricher
-    // and add bag.AddOrUpdate("UtcTimestamp", DateTime.UtcNow.ToString("O"));
+    // Conditional enrichment — enricher runs only when predicate is true
+    // Conditional enrichment — implement IEnricher and register with a predicate:
+    // .WithEnricher(new TimestampEnricher(), when: e => e.Level >= LogLevel.Warning)
+    // TimestampEnricher example: bag.AddOrUpdate("UtcTimestamp", DateTime.UtcNow.ToString("O"))
 
-    // Sinks with per-sink minimum level
-    .WriteTo(new ColoredConsoleSink(),                   LogLevel.Debug)
-    .WriteTo(new RollingFileSink("logs/app.jsonl"),      LogLevel.Warning)
-    .WithDashboard(out dashSink,                         LogLevel.Information)
-);
+    // Per-sink minimum level
+    .WriteTo(new ColoredConsoleSink(),              LogLevel.Debug)    // everything
+    .WriteTo(new RollingFileSink("logs", "MyApp"), LogLevel.Warning)); // disk: warnings+
 
 // HTTP context enrichers — register before Build() (Web API / Minimal API only)
-builder.Services.AddHttpContextAccessor();   // required — must come first
-builder.Services.AddSinkSharpRequestId();    // stamps RequestId
+// AddHttpContextAccessor() must come before any enricher below
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSinkSharpRequestId();    // stamps RequestId on every request
 builder.Services.AddSinkSharpRequestPath();  // stamps HttpMethod + RequestPath
 builder.Services.AddSinkSharpElapsedTime();  // stamps ElapsedMs since request start
-builder.Services.AddSinkSharpUserContext();  // stamps UserId, UserName, UserRole
+builder.Services.AddSinkSharpUserContext();  // stamps UserId, UserName, UserRole (auth only)
 
 var app = builder.Build();
 
-// One-line middleware after Build() — X-Correlation-Id + ElapsedTime stopwatch
+// Web API / Minimal API only — one line after Build():
+// X-Correlation-Id header + starts ElapsedTime stopwatch
 app.UseSinkSharp();
 
-// Dynamic level at runtime — no restart needed
+// Console App / Worker Service — no HTTP pipeline
+// Use CorrelationContext.Use() per operation and Stopwatch for elapsed time
+using (CorrelationContext.Use("job-001"))
+{
+    var sw = System.Diagnostics.Stopwatch.StartNew();
+    // ... do work ...
+    sw.Stop();
+    logger.Log(LogLevel.Information,
+        "Job {JobId} complete — {Count} items in {ElapsedMs}ms", jobId, count, sw.ElapsedMilliseconds);
+    // ElapsedMs appears in console properties line, dashboard Properties tab, and CSV export
+}
+
+// Runtime level — no restart needed
 SinkSharpLoggerFactory.SetGlobalLevel(LogLevel.Debug);  // enable debug temporarily
 SinkSharpLoggerFactory.SetGlobalLevel(LogLevel.None);   // restore startup level
 ```
 
 ---
 
-## Samples
+## Performance
 
-| Sample | What it shows |
-|---|---|
-| [SinkSharp.AdvancedEnricherSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.AdvancedEnricherSample) | All enrichers, filter, conditional enrichment, runtime level |
-| [SinkSharp.Sample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.Sample) | Console app, no DI |
-| [SinkSharp.WebApiSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.WebApiSample) | Web API with MEL |
-| [SinkSharp.WorkerSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.WorkerSample) | Background Worker |
-| [SinkSharp.MinimalApiSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.MinimalApiSample) | Minimal API |
-| [SinkSharp.MultiPodSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.MultiPodSample) | Redis multi-pod + all auth options |
-| [SinkSharp.AzureSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.AzureSample) | Azure context enricher + AKS deploy |
-| [SinkSharp.CustomSinkSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.CustomSinkSample) | Custom sink implementation |
-| [SinkSharp.CustomEnricherSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.CustomEnricherSample) | Custom enricher |
-| [SinkSharp.MultiSinkSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.MultiSinkSample) | Console + File + Dashboard |
-| [SinkSharp.HealthCheckSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.HealthCheckSample) | ASP.NET health check integration |
-| [SinkSharp.ScopedLoggingSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.ScopedLoggingSample) | Scoped logging with ILogger |
-| [SinkSharp.AspNetSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.AspNetSample) | Full ASP.NET Core integration |
-| [SinkSharp.DashboardAuthSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.DashboardAuthSample) | All dashboard auth modes |
+Benchmarks run on .NET 9.0.20, Windows 11, X64 RyuJIT AVX2, BenchmarkDotNet v0.14.0.
+Single producer thread for hot-path and allocation benchmarks. NullSink (in-memory, no I/O) to
+isolate queue and pipeline cost. Serilog comparison uses buffered file sink.
+Ratios are more meaningful than absolute numbers — run on your own hardware to reproduce.
 
-Full runnable samples: [SinkSharp-Logging-Samples](https://github.com/SinkSharp/SinkSharp-Logging-Samples)
+| Metric | SinkSharp | Serilog | Result |
+|---|---|---|---|
+| Hot path no enrichers | **843 ns** | 2,672 ns | **3.2× faster** |
+| Hot path all enrichers (PII + Corr + Env) | **795 ns** | 2,672 ns | **3.4× faster** |
+| Hot path Error (critical channel) | **835 ns** | 2,672 ns | **3.2× faster** |
+| IsEnabled fast-exit (below min level) | **6 ns** | — | zero allocation |
+| P99 mean — mixed load (80% Info/15% Warn/5% Error) | **1.33 µs** | 2.82 µs | **2.1× faster** |
+| P95 tail — mixed load | **1.82 µs** | 3.70 µs | **2.0× lower tail** |
+| Allocation 0 props | **80 B** | 161 B | **50% less** |
+| Allocation 1 prop | **299 B** | 361 B | **17% less** |
+| Allocation 3 props | **341 B** | 473 B | **28% less** |
+| Lock contentions @ 4 threads (ConcurrentThroughputBenchmark) | **~0** | 1,575 | **Near-zero** |
+| Backpressure — caller with 10ms SlowSink | **715 ns** | blocked | **Caller never waits** |
+| Concurrent producers 4 threads × 1,000 events | **3,098 µs** | 4,682 µs | **1.5× faster** |
+| Concurrent producers 8 threads × 1,000 events | **6,657 µs** | 8,747 µs | **1.3× faster** |
+| E2E durability — events lost (all 9 sink/producer combinations) | **0** | — | **Zero loss verified** |
 
 ---
 
-## Links
+## Architecture
 
-| | |
-|---|---|
-| 🌐 Website | [https://www.sinksharp.com](https://www.sinksharp.com) |
-| 📦 NuGet | [nuget.org/profiles/sinksharp](https://www.nuget.org/profiles/sinksharp) |
-| 🧪 Samples | [SinkSharp-Logging-Samples](https://github.com/SinkSharp/SinkSharp-Logging-Samples) |
-| 📧 Support | [support@sinksharp.com](mailto:support@sinksharp.com) |
-| 📄 Licence | [Apache 2.0](https://github.com/SinkSharp/.github/blob/main/profile/LICENSE) |
+- Striped async channel queue — one channel per CPU core (max 16)
+- Bounded `DropOldest` for Info/Debug/Warn; unbounded for Error/Critical — critical events are never dropped
+- Background drainer thread — caller enqueues and returns in ~850ns (includes enrichment; sink writes happen on drainer thread)
+- LogEvent object pool — reduced allocation and GC pressure under sustained load
+- `MessageTemplate` parsed and cached on first use
+
+---
+
+## Release notes
+
+### v1.0.8
+- Fixed: `_taskBuffer` data race in `LogPipeline` when 2+ sinks configured — each `ProcessAsync` now uses `ArrayPool<Task>` per-invocation
+- Fixed: sink exception permanently killed drainer stripe — per-sink `try/catch`; `SinkFailureCount` counter added; drainer continues
+- Fixed: `ReturnToPool()` now in `finally` — pool leak on sink exception eliminated
+- Fixed: `TotalDropped` always returned 0 — replaced `BoundedChannel.TryWrite` drop detection with atomic per-stripe occupancy counter; race-free under 32 concurrent producers
+- Fixed: critical drainer `IndexOutOfRangeException` — `stripeIdx: _stripeCount` → `stripeIdx: -1` sentinel; Error/Critical events now correctly processed at shutdown
+- Fixed: shutdown race — replaced `_disposed int` with state machine (`Accepting/Draining/Stopped`) using `Interlocked.CompareExchange`
+- Fixed: category prefix filter false match — `MinimumLevelFor("Microsoft")` no longer matches `"MicrosoftExtra"`; requires exact match or dot boundary
+- Added: `SinkSharpLogger.ClearCallerCaptures()` for test teardown
+- Added: `AsyncLogQueue.SinkFailureCount` — observable counter for sink errors
+- 230 tests, all passing
+
+### v1.0.7
+- Event delivery guaranteed at all producer counts — drain waits for all events to be processed
+- Lock contention eliminated from hot path — near-zero contentions at 8+ threads
+
+### v1.0.6
+- `AddSinkSharpRequestId()` — stamps `RequestId` on every HTTP request event
+- `AddSinkSharpUserContext()` — stamps `UserId`, `UserName`, `UserRole` (authenticated only)
+- `AddSinkSharpRequestPath()` — stamps `HttpMethod` + `RequestPath`
+- `AddSinkSharpElapsedTime()` — stamps `ElapsedMs` since request start (requires `app.UseSinkSharp()`)
+
+### v1.0.5
+- `WithMachineName()` — standalone machine/pod name enricher
+- `WithRequestId(accessor)` — stamps `RequestId` from `HttpContext.TraceIdentifier`
+- `WithUserContext(accessor)` — stamps `UserId`, `UserName`, `UserRole`; safe for anonymous endpoints
+- `WithRequestPath(accessor)` — stamps `HttpMethod` and `RequestPath`
+- `WithElapsedTime(accessor)` — stamps `ElapsedMs` since request start; needs `app.UseSinkSharp()`
+- `WriteTo(sink, minLevel)` — per-sink minimum log level independent of global minimum
+- `.Filter(predicate)` — drop events before enqueue; zero allocation for dropped events
+- `.WithEnricher(enricher, when: predicate)` — conditional enrichment by level or category
+- `SinkSharpLoggerFactory.SetGlobalLevel(level)` — runtime level change without restart
+- `app.UseSinkSharp()` — one-line middleware: X-Correlation-Id + ElapsedTime stopwatch
+- `AddSinkSharpRequestId()`, `AddSinkSharpUserContext()`, `AddSinkSharpRequestPath()`, `AddSinkSharpElapsedTime()` DI helpers
+
+### v1.0.4
+- Fixed: `DisposeAsync()` is now idempotent — calling it multiple times no longer
+  throws `ObjectDisposedException`. Uses `Volatile.Read` / `Interlocked.Exchange` guard.
+
+### v1.0.3
+- Performance: `EnsureCapacity()` called before property extraction
+
+### v1.0.2
+- Fixed email regex in `PiiMaskingEnricher`
+- Fixed `CorrelationId` captured on caller thread
+- Fixed `PendingCount` counter arithmetic
+- Fixed `DefaultFormatter` safe property lookup
+- Fixed `LogBuffer` counter on eviction
+- Fixed phone number masking for `(555) 123-4567` format
+
+### v1.0.1
+- Bug fix: email PII regex corrected
+
+### v1.0.0
+- Initial release
