@@ -5,6 +5,10 @@ Fast structured logging pipeline for .NET 9.
 [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Core.svg)](https://www.nuget.org/packages/SinkSharp.Core)
 
 ---
+# Dashboard UI
+<img width="1917" height="907" alt="SinkSharp_Dashboard" src="https://github.com/user-attachments/assets/06edb3ad-d089-492e-bfdd-6e997999b370" />
+
+---
 
 ## Installation
 
