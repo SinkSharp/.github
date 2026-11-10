@@ -32,6 +32,40 @@
 
 ---
 
+## [SinkSharp.Sinks.OpenTelemetry 1.0.0] — 2026-11-03 — Initial release
+
+### Added
+- **`OtlpLogSink`** — SinkSharp `ISink` that exports fully-enriched, PII-masked log events to any OpenTelemetry-compatible backend via binary Protobuf OTLP. Receives events from the SinkSharp drainer thread after all enrichers have run — PII is masked in-process before any data reaches the OTLP endpoint.
+- **`OtlpLogSinkOptions`** — unified configuration for endpoint, protocol, API key headers, service name/version/environment, batch size, flush interval, export timeout, and retry count. One config object shared between `OtlpLogSink` and `AddSinkSharpTracing`.
+- **`OtlpProtocol` enum** — `Grpc` (binary Protobuf over HTTP/2, port 4317) and `HttpProtobuf` (binary Protobuf over HTTP/1.1, port 4318).
+- **`AddSinkSharpTracing()`** — registers OpenTelemetry distributed tracing via a `configureTracing` callback. Caller adds instrumentation libraries (AspNetCore, HttpClient, SqlClient) and the OTLP trace exporter — keeping the package independent of specific instrumentation packages.
+- **`OtlpSuppressingHandler`** — `DelegatingHandler` that suppresses `Activity.Current` during each OTLP export call, preventing `AddHttpClientInstrumentation` from creating child spans for the sink's own export requests.
+- **Binary Protobuf wire format** — implemented from scratch using `Google.Protobuf` primitives (`CodedOutputStream`, `WireFormat`, `ByteString`). No third-party proto package required.
+  - gRPC path: Protobuf bytes wrapped in 5-byte gRPC frame (`Content-Type: application/grpc+proto`, HTTP/2)
+  - HTTP path: raw Protobuf bytes (`Content-Type: application/x-protobuf`, POST to `/v1/logs`)
+- **LogEvent → OTel LogRecord mapping** per the OTel Log Data Model specification:
+  `SeverityNumber`, `SeverityText`, `Body`, `log.record.original`, `code.namespace`,
+  `correlation.id`, `trace.id`, `span.id`, `exception.type`, `exception.message`, `exception.stacktrace`
+- **Batching** — configurable `BatchSize` (default 512) and `FlushInterval` (default 5 seconds). Error and Critical events flush immediately.
+- **Retry with exponential back-off** — 1s → 2s → 4s on transient failures (429, 503, network errors). Non-transient failures (400, 401, 403) are reported and dropped.
+- **Graceful shutdown drain** — `DisposeAsync` flushes remaining buffered events before exit. Zero events lost at graceful shutdown.
+- **`NOTICE.txt`** — Apache 2.0 attribution for opentelemetry-proto wire format specification bundled in the NuGet package.
+
+### Verified backends
+- Grafana Loki — all log levels, structured metadata, PII masking confirmed ✅
+- Jaeger — HTTP request spans, span events in Logs tab, error spans confirmed ✅
+- OTel Collector → Loki + Jaeger (Grafana profile) confirmed ✅
+
+### Sample project
+- `samples/SinkSharp.OpenTelemetrySample` — complete working sample with Docker Compose for Jaeger and Grafana + Loki + OTel Collector profiles. Demonstrates all endpoints, PII masking, span events, error recording.
+
+### Dependencies
+- `Google.Protobuf` 3.30.1
+- `Grpc.Net.Client` 2.67.0
+- `OpenTelemetry.Extensions.Hosting` 1.9.0
+
+---
+
 ## [1.0.8] — 2026-10-25 — Correctness fixes
 
 ### Fixed

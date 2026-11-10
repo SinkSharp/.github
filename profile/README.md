@@ -37,6 +37,7 @@ See [benchmarks/README.md](benchmarks/README.md) for full methodology and raw nu
 | [SinkSharp.Sinks.File](src/SinkSharp.Sinks.File) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.File.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.File) | Rolling JSONL file sink (CLEF format) |
 | [SinkSharp.Sinks.Dashboard](src/SinkSharp.Sinks.Dashboard) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.Dashboard.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.Dashboard) | Embedded real-time web dashboard |
 | [SinkSharp.Enrichers.Azure](src/SinkSharp.Enrichers.Azure) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Enrichers.Azure.svg)](https://www.nuget.org/packages/SinkSharp.Enrichers.Azure) | Azure context (region, resource group, pod) |
+| [SinkSharp.Sinks.OpenTelemetry](src/SinkSharp.Sinks.OpenTelemetry) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.OpenTelemetry.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.OpenTelemetry) | OTLP log export + distributed tracing (Jaeger, Grafana, Datadog) |
 
 ---
 
@@ -293,6 +294,45 @@ using var _ = CorrelationContext.Use(Guid.NewGuid().ToString("N")[..12]);
 | [SinkSharp.ScopedLoggingSample](https://github.com/SinkSharp/SinkSharp-Logging-Samples/tree/main/SinkSharp.ScopedLoggingSample) | Scoped logging with ILogger |
 
 Full runnable samples: [SinkSharp-Logging-Samples](https://github.com/SinkSharp/SinkSharp-Logging-Samples)
+
+
+---
+
+## OpenTelemetry — OTLP export + distributed tracing
+
+Send logs and traces to any OpenTelemetry backend — Jaeger, Grafana Loki, Datadog, New Relic, Honeycomb, Azure Monitor — with one package and one config object.
+
+```bash
+dotnet add package SinkSharp.Sinks.OpenTelemetry
+```
+
+```csharp
+var otlpOptions = new OtlpLogSinkOptions
+{
+    Endpoint              = new Uri("http://localhost:4317"),
+    Protocol              = OtlpProtocol.Grpc,
+    ServiceName           = "MyApp",
+    ServiceVersion        = "1.0.0",
+    DeploymentEnvironment = env,
+};
+
+builder.Services.AddSinkSharp(options => options
+    .WithCorrelationId()
+    .WithEnvironment("MyApp", env)
+    .WithPiiMasking()                                  // masked before OTLP export
+    .WriteTo(new ColoredConsoleSink(), LogLevel.Debug)
+    .WriteTo(new OtlpLogSink(otlpOptions), LogLevel.Information));
+
+builder.Services.AddSinkSharpTracing(otlpOptions, tracing => tracing
+    .AddAspNetCoreInstrumentation(o => o.RecordException = true)
+    .AddHttpClientInstrumentation()
+    .AddOtlpExporter(o => o.Endpoint = otlpOptions.Endpoint));
+```
+
+Every log record arrives at your backend carrying `CorrelationId`, `UserId`, `RequestPath`, `ElapsedMs`, `Environment`, and `MachineName` as structured OTel attributes — stamped in-process before export, ready to query in Grafana, Jaeger, or Datadog without any additional configuration.
+
+See [SinkSharp.Sinks.OpenTelemetry](src/SinkSharp.Sinks.OpenTelemetry) for the full reference and [SinkSharp.OpenTelemetrySample](samples/SinkSharp.OpenTelemetrySample) for a working Docker Compose setup.
+
 
 ---
 
