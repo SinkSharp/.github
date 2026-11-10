@@ -7,6 +7,10 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/SinkSharp/.github/blob/main/profile/LICENSE)
 
 ---
+# Dashboard UI (Sample Log Entries)
+<img width="1917" height="912" alt="image" src="https://github.com/user-attachments/assets/ce25053c-8719-483c-bf8e-797c24accf2e" />
+---
+
 
 ## Why SinkSharp?
 
