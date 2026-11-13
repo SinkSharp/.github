@@ -1,3 +1,33 @@
+## [SinkSharp.Core 1.0.10] — 2026-11-13 — Dependency updates
+
+### Changed
+- `Microsoft.Extensions.Logging.Abstractions` updated to 10.0.15
+- `Microsoft.Extensions.Hosting.Abstractions` updated to 10.0.15
+- `Microsoft.Extensions.DependencyInjection.Abstractions` updated to 10.0.15
+- `Microsoft.Extensions.Diagnostics.HealthChecks` updated to 10.0.15
+- `Microsoft.Extensions.ObjectPool` updated to 10.0.15
+- `System.Threading.Channels` updated to 10.0.15
+- `Microsoft.AspNetCore.Http.Abstractions` updated to 2.3.14
+- All existing functionality unchanged — safe to upgrade from 1.0.9
+
+---
+
+## [SinkSharp.Sinks.OpenTelemetry 1.0.1] — 2026-11-13 — Wire format fix
+
+### Fixed
+- **OTLP binary Protobuf field numbers** corrected to match current `opentelemetry-proto` specification: `severity_number = field 2`, `severity_text = field 3` (field 4 is reserved). Previously used wrong field numbers which caused `wrong wireType = 0 for field SeverityText` errors on all OTLP backends including Grafana Loki, Jaeger, and OTel Collector.
+- **gRPC HTTP/2 transport** for plain `http://` endpoints: added `EnableMultipleHttp2Connections = true` to `SocketsHttpHandler` and `HttpVersionPolicy.RequestVersionOrHigher` to the gRPC `HttpRequestMessage`. Without these, .NET downgrades to HTTP/1.1 on non-TLS connections and gRPC fails with a connection error.
+
+### Changed
+- Removed `Google.Protobuf` direct package dependency. The Protobuf wire format is now implemented via `ProtoWriter` — a lightweight manual varint encoder. This reduces the dependency surface and eliminates version-specific API behaviour differences in `CodedOutputStream`.
+
+### Verified
+- Grafana Loki 3.4.1 — log lines, structured metadata, PII masking, `service_name` and `deployment_environment` labels ✅
+- Jaeger 1.65.0 — HTTP request spans, span events, error spans ✅
+- OTel Collector 0.164.0 — gRPC ingestion on port 4317 ✅
+
+---
+
 ## [1.0.9] — 2026-10-27 — v1.1 feature release
 
 ### Added — SinkSharp.Core 1.0.9
@@ -29,6 +59,14 @@
 - **`📌 Only` toolbar button** — filters the main log list to show only pinned events (non-pinned rows faded to 18% opacity for context). Auto-disables when last pin is removed. Works independently of the Pinned view.
 - **`⊞ Pinned` toolbar button** — opens a full-screen dedicated Pinned view that replaces the log list. Sticky header with pin count, `Unpin all`, and `← Back to logs`. Each row shows level badge, timestamp, full message, category, and unpin button. Clicking any row opens the detail panel. Auto-closes when last pin is removed. Clicking `⊞ Pinned` again closes and returns to the log list.
 - Both pinned toolbar buttons start disabled and activate as soon as the first event is pinned.
+
+---
+
+## [SinkSharp.Sinks.OpenTelemetry 1.0.1] — 2026-11-10 — Dependency updates
+
+### Changed
+- `Google.Protobuf` updated from 3.30.1 to 3.36.2
+- `OpenTelemetry.Extensions.Hosting` updated from 1.9.0 to 1.20.1
 
 ---
 

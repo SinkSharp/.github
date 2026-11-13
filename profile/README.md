@@ -11,7 +11,6 @@
 <img width="1917" height="912" alt="image" src="https://github.com/user-attachments/assets/ce25053c-8719-483c-bf8e-797c24accf2e" />
 ---
 
-
 ## Why SinkSharp?
 
 | Metric | SinkSharp | Serilog | Result |
@@ -41,7 +40,7 @@ See [benchmarks/README.md](benchmarks/README.md) for full methodology and raw nu
 | [SinkSharp.Sinks.File](src/SinkSharp.Sinks.File) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.File.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.File) | Rolling JSONL file sink (CLEF format) |
 | [SinkSharp.Sinks.Dashboard](src/SinkSharp.Sinks.Dashboard) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.Dashboard.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.Dashboard) | Embedded real-time web dashboard |
 | [SinkSharp.Enrichers.Azure](src/SinkSharp.Enrichers.Azure) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Enrichers.Azure.svg)](https://www.nuget.org/packages/SinkSharp.Enrichers.Azure) | Azure context (region, resource group, pod) |
-| [SinkSharp.Sinks.OpenTelemetry](src/SinkSharp.Sinks.OpenTelemetry) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.OpenTelemetry.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.OpenTelemetry) | OTLP log export + distributed tracing (Jaeger, Grafana, Datadog) |
+| [SinkSharp.Sinks.OpenTelemetry](src/SinkSharp.Sinks.OpenTelemetry) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.OpenTelemetry.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.OpenTelemetry) | OTLP log export + distributed tracing — Jaeger, Grafana Loki, Datadog, New Relic, Azure Monitor |
 
 ---
 
@@ -116,8 +115,8 @@ Mounts on your existing ASP.NET Core app at the same host and port. No extra pro
 ### Install
 
 ```bash
-dotnet add package SinkSharp.Core --version 1.0.9
-dotnet add package SinkSharp.Sinks.Dashboard --version 1.0.5
+dotnet add package SinkSharp.Core
+dotnet add package SinkSharp.Sinks.Dashboard
 ```
 
 ### Option 1 — Web API / Minimal API (same host, same port)
@@ -251,7 +250,7 @@ builder.Services.AddHttpContextAccessor();
 // builder.Services.AddSinkSharpRequestId();
 // builder.Services.AddSinkSharpRequestPath();
 // builder.Services.AddSinkSharpElapsedTime();
-// builder.Services.AddSinkSharpUserContext(claims: ["userId", "personaId", "solutionName"]);
+// builder.Services.AddSinkSharpUserContext(claims: ["userId", "role", "tenant"]);
 
 // Web API / Minimal API: X-Correlation-Id header lifecycle + ElapsedTime stopwatch
 app.UseSinkSharp();
@@ -304,7 +303,7 @@ Full runnable samples: [SinkSharp-Logging-Samples](https://github.com/SinkSharp/
 
 ## OpenTelemetry — OTLP export + distributed tracing
 
-Send logs and traces to any OpenTelemetry backend — Jaeger, Grafana Loki, Datadog, New Relic, Honeycomb, Azure Monitor — with one package and one config object.
+Ship logs and distributed traces to any OpenTelemetry backend — Jaeger, Grafana Loki, Datadog, New Relic, Honeycomb, Azure Monitor — with one package and a single config object. No OpenTelemetry SDK wiring required for log export.
 
 ```bash
 dotnet add package SinkSharp.Sinks.OpenTelemetry
@@ -330,10 +329,14 @@ builder.Services.AddSinkSharp(options => options
 builder.Services.AddSinkSharpTracing(otlpOptions, tracing => tracing
     .AddAspNetCoreInstrumentation(o => o.RecordException = true)
     .AddHttpClientInstrumentation()
-    .AddOtlpExporter(o => o.Endpoint = otlpOptions.Endpoint));
+    .AddOtlpExporter(o =>
+    {
+        o.Endpoint = otlpOptions.Endpoint;
+        o.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+    }));
 ```
 
-Every log record arrives at your backend carrying `CorrelationId`, `UserId`, `RequestPath`, `ElapsedMs`, `Environment`, and `MachineName` as structured OTel attributes — stamped in-process before export, ready to query in Grafana, Jaeger, or Datadog without any additional configuration.
+Every log record arrives at your backend carrying `CorrelationId`, `UserId`, `RequestPath`, `ElapsedMs`, `Environment`, and `MachineName` as structured OTel attributes — stamped in-process before export. PII masking runs before the sink sees the event, so sensitive data never leaves the application. Ready to query in Grafana, Jaeger, or Datadog without any additional configuration.
 
 See [SinkSharp.Sinks.OpenTelemetry](src/SinkSharp.Sinks.OpenTelemetry) for the full reference and [SinkSharp.OpenTelemetrySample](samples/SinkSharp.OpenTelemetrySample) for a working Docker Compose setup.
 
