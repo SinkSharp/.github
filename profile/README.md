@@ -39,6 +39,7 @@ See [benchmarks/README.md](benchmarks/README.md) for full methodology and raw nu
 | [SinkSharp.Sinks.Console](src/SinkSharp.Sinks.Console) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.Console.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.Console) | Coloured structured console output |
 | [SinkSharp.Sinks.File](src/SinkSharp.Sinks.File) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.File.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.File) | Rolling JSONL file sink (CLEF format) |
 | [SinkSharp.Sinks.Dashboard](src/SinkSharp.Sinks.Dashboard) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.Dashboard.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.Dashboard) | Embedded real-time web dashboard |
+| [SinkSharp.Sinks.Dashboard.Redis](src/SinkSharp.Sinks.Dashboard.Redis) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.Dashboard.Redis.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.Dashboard.Redis) | Shared, persistent dashboard history on Redis Streams |
 | [SinkSharp.Enrichers.Azure](src/SinkSharp.Enrichers.Azure) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Enrichers.Azure.svg)](https://www.nuget.org/packages/SinkSharp.Enrichers.Azure) | Azure context (region, resource group, pod) |
 | [SinkSharp.Sinks.OpenTelemetry](src/SinkSharp.Sinks.OpenTelemetry) | [![NuGet](https://img.shields.io/nuget/v/SinkSharp.Sinks.OpenTelemetry.svg)](https://www.nuget.org/packages/SinkSharp.Sinks.OpenTelemetry) | OTLP log export + distributed tracing — Jaeger, Grafana Loki, Datadog, New Relic, Azure Monitor |
 
@@ -98,6 +99,11 @@ Mounts on your existing ASP.NET Core app at the same host and port. No extra pro
 
 - ⚡ Real-time event stream via SignalR WebSocket
 - 🕑 Buffer replay — last 500 events shown immediately on connect
+- 📜 **v1.1.0** — Load older: page back through history, with level, search and correlation filters applied on the server
+- 🗄️ **v1.1.0** — Optional Redis Streams history: shared across pods and preserved across restarts ([SinkSharp.Sinks.Dashboard.Redis](src/SinkSharp.Sinks.Dashboard.Redis))
+- 🧭 **v1.1.0** — Focused, chronological view: events listed in time order, with the dashboard's own traffic kept out of the way
+- 🔄 **v1.1.0** — Self-healing connection: automatic recovery with a gentle back-off, new events keep appearing on their own while degraded, and the pod's recent events always on hand
+- 🩺 **v1.1.0** — `GET {dashboard}/health` and `AddSinkSharpDashboardHealthCheck()`: a reachability check for the history store, independent of whether a dashboard tab is open
 - 🔍 Filter by level, service, correlation ID, time range (All / 5m / 30m / 1h)
 - 🔎 Full-text search (plain text or regex toggle)
 - 🔖 **v1.0.5** — Pin / bookmark individual events to a sticky `Pinned` section above the log list
@@ -160,6 +166,30 @@ builder.Services.AddSinkSharpDashboardRedis(dashSink, signalR =>
 
 app.UseSinkSharpDashboard("/sinksharp/dashboard"); // unchanged
 ```
+
+### Option 4 — Multi-pod with shared, persistent history (Redis Streams)
+
+```bash
+dotnet add package SinkSharp.Sinks.Dashboard.Redis
+```
+
+```csharp
+var redis = builder.Configuration["Redis:ConnectionString"];
+
+builder.Services.AddSinkSharpDashboardRedis(dashSink,
+    signalR => signalR.AddStackExchangeRedis(redis),                                // live stream across pods
+    streams => { streams.ConnectionString = redis; streams.RetentionDays = 7; });   // history across pods and restarts
+
+app.UseSinkSharpDashboard("/sinksharp/dashboard"); // unchanged
+```
+
+Open the dashboard on any pod and it replays the recent events of every pod; **Load older** pages further back.
+
+| Setup | History on connect | After a restart | Requires |
+|---|---|---|---|
+| Option 1 / 2 | This instance's recent events | Starts fresh | — |
+| Option 3 | This pod's recent events, live stream from every pod | Starts fresh | Redis |
+| Option 4 | Recent events from every pod | Preserved | Redis 5.0+ |
 
 ---
 
@@ -350,5 +380,6 @@ See [SinkSharp.Sinks.OpenTelemetry](src/SinkSharp.Sinks.OpenTelemetry) for the f
 | 🌐 Website | [https://www.sinksharp.com](https://www.sinksharp.com) |
 | 📦 NuGet | [nuget.org/profiles/sinksharp](https://www.nuget.org/profiles/sinksharp) |
 | 🧪 Samples | [SinkSharp-Logging-Samples](https://github.com/SinkSharp/SinkSharp-Logging-Samples) |
+| 📋 Changelog | [CHANGELOG.md](https://github.com/SinkSharp/.github/blob/main/profile/CHANGELOG.md) |
 | 📧 Support | [support@sinksharp.com](mailto:support@sinksharp.com) |
 | 📄 Licence | [Apache 2.0](https://github.com/SinkSharp/.github/blob/main/profile/LICENSE) |

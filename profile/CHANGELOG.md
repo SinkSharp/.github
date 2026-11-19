@@ -1,3 +1,41 @@
+## [SinkSharp.Sinks.Dashboard 1.1.0] — 2026-11-16 — History store, Load older, resilient live stream
+
+### Security
+- **Token mode covers the live stream.** `UseToken()` now validates the SignalR connection as well as the stats and history endpoints. Bearer, Basic and IP-allowlist modes are unchanged. Recommended upgrade for everyone using `UseToken()`.
+
+### Added
+- **Pluggable history store** — `IDashboardHistoryStore`. The in-memory buffer is the default, so existing setups work as they are. `SinkSharp.Sinks.Dashboard.Redis` adds Redis Streams for history shared across pods and preserved across restarts.
+- **Load older** — pages older events in from the history store; the active level, search and correlation filters are applied on the server.
+- **`GET {dashboard}/history`** — paging endpoint (`cursor`, `count`, `level`, `q`, `corr`, `from`, `to`), protected the same way as the hub and stats.
+- **`GET {dashboard}/health`** and `AddSinkSharpDashboardHealthCheck()` — a reachability check for the configured history store, for monitoring and uptime probes independent of whether a dashboard happens to be open.
+- `DashboardOptions.ShowDashboardRequests()`; `DashboardOptions.ConfigureCatchUpPolling(intervalMs, count)`; `DashboardServer.HistoryStore`; stats include `historyStore` and `historyPersistent`.
+- `IDashboardHistoryStore.TotalWritten`/`TotalDropped` (nullable, default `null`) — `/stats` and `/health` now report `historyTotalWritten`/`historyTotalDropped` for any store that tracks them.
+
+### Improved
+- **Non-blocking live stream** — events are pushed to browsers without holding the logging pipeline, so every other sink keeps its pace whatever the state of the Redis backplane.
+- **Always-available dashboard** — while a backplane or history store is temporarily out of reach, the dashboard shows the pod's own recent events, says so plainly in the footer, and reconnects by itself with a gentle back-off (2 s up to 30 s). New events keep appearing on their own too, via a history poll while degraded — a manual refresh is never required.
+- **Clean reconnects** — replayed events are de-duplicated and the list stays in time order.
+- **Chronological list** — events are ordered by timestamp, including when several pods interleave.
+- **Focused view** — below Warning, the dashboard leaves out its own traffic: requests to its endpoints, and SignalR, WebSocket and Kestrel connection logs. Other sinks receive everything. `o.ShowDashboardRequests()` includes it.
+- **Event IDs** are unique across pods and restarts (`<instance>-<sequence>`).
+- **Startup line** prints the bound address.
+
+---
+
+## [SinkSharp.Sinks.Dashboard.Redis 1.0.0] — 2026-11-16 — Initial release
+
+### Added
+- `RedisStreamHistoryStore` — dashboard history in a Redis Stream, shared by every pod that uses the same `StreamKey`, preserved across restarts and deployments.
+- `AddSinkSharpDashboardRedisStreams()` for history; `AddSinkSharpDashboardRedis(sink, signalR, streams)` for the SignalR backplane plus history in one call.
+- Non-blocking writes: events are queued and written in pipelined batches on a background task.
+- Retention by age (`RetentionDays`, Redis 6.2+ or Valkey) and by count (`MaxLength`, default 100,000, any Redis 5.0+).
+- `PingAsync()` — a real Redis round-trip with its own short timeout, backing the dashboard's `/health` endpoint and `AddSinkSharpDashboardHealthCheck()`.
+- `TotalWritten`/`TotalDropped` implement the new `IDashboardHistoryStore` counters, so `/stats` and `/health` show real write/drop totals for this store instead of `null`.
+- Resilient to Redis interruptions: logging and the live stream continue, the dashboard serves each pod's recent events, and shared history resumes automatically.
+- Requires `SinkSharp.Sinks.Dashboard` 1.1.0 or later.
+
+---
+
 ## [SinkSharp.Core 1.0.10] — 2026-11-13 — Dependency updates
 
 ### Changed
